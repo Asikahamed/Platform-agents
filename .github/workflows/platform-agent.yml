@@ -4,17 +4,15 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
-  workflow_dispatch:
 
     paths-ignore:
-        - "sample-java-app/Dockerfile"
-        - "sample-java-app/.dockerignore"
-        - "sample-java-app/terraform/**"
-        - "sample-java-app/.github/workflows/**"
+      - "sample-java-app/Dockerfile"
+      - "sample-java-app/.dockerignore"
+      - "sample-java-app/terraform/**"
+      - "sample-java-app/.github/workflows/**"
 
+  workflow_dispatch:
+  
 permissions:
   contents: write
   pull-requests: write
@@ -163,6 +161,7 @@ jobs:
 
     outputs:
       branch_name: ${{ steps.branch.outputs.branch_name }}
+      changes: ${{ steps.commit.outputs.changes }}
 
     steps:
 
@@ -226,20 +225,26 @@ jobs:
           echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
 
       - name: Commit Changes
+        id: commit
         run: |
-
+      
           git add .
-
+      
           if git diff --cached --quiet; then
             echo "No changes detected"
+      
+            echo "changes=false" >> $GITHUB_OUTPUT
+      
             exit 0
           fi
-
+      
           git commit -m "Platform Agent generated DevOps assets"
+      
+          echo "changes=true" >> $GITHUB_OUTPUT
 
       - name: Push Branch
+        if: steps.commit.outputs.changes == 'true'
         run: |
-
           git push origin HEAD
 
 ################################################################################
@@ -247,6 +252,8 @@ jobs:
 ################################################################################
 
   create-pr:
+  
+    if: needs.generate-assets.outputs.changes == 'true'
 
     runs-on: ubuntu-latest
 
@@ -278,6 +285,24 @@ jobs:
 
           Please review and merge.
           '
+  skip-pr:
+
+    if: needs.generate-assets.outputs.changes == 'false'
+  
+    runs-on: ubuntu-latest
+  
+    needs:
+      - generate-assets
+  
+    steps:
+  
+      - name: No Changes Found
+        run: |
+  
+          echo "# Platform Agent" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "No DevOps assets required." >> $GITHUB_STEP_SUMMARY
+          echo "PR creation skipped." >> $GITHUB_STEP_SUMMARY  
 
 ################################################################################
 # PLATFORM REVIEW
@@ -292,7 +317,6 @@ jobs:
       - load-agents
       - agent-decision-engine
       - generate-assets
-      - create-pr
 
     steps:
 
