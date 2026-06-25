@@ -11,7 +11,15 @@ permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  group: platform-agent-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+
+################################################################################
+# ANALYZE REPOSITORY
+################################################################################
 
   analyze-repository:
 
@@ -19,7 +27,6 @@ jobs:
 
     outputs:
       app_path: ${{ steps.detect.outputs.app_path }}
-
       language: ${{ steps.detect.outputs.language }}
       build_tool: ${{ steps.detect.outputs.build_tool }}
       framework: ${{ steps.detect.outputs.framework }}
@@ -32,17 +39,17 @@ jobs:
 
     steps:
 
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Analyze Application
         id: detect
+        shell: bash
         run: |
 
-          APP_PATH=$(find . -name pom.xml | head -1 | xargs dirname)
+          APP_PATH=$(find . -type f -name "pom.xml" | head -1 | xargs dirname)
 
           if [ -z "$APP_PATH" ]; then
-            echo "No pom.xml found."
+            echo "No pom.xml found"
             exit 1
           fi
 
@@ -53,7 +60,7 @@ jobs:
           echo "language=java" >> $GITHUB_OUTPUT
           echo "build_tool=maven" >> $GITHUB_OUTPUT
 
-          JAVA_VERSION=$(grep -oPm1 "(?<=<java.version>)[^<]+" "$APP_PATH/pom.xml")
+          JAVA_VERSION=$(sed -n 's:.*<java.version>\(.*\)</java.version>.*:\1:p' "$APP_PATH/pom.xml" | head -1)
 
           if [ -z "$JAVA_VERSION" ]; then
             JAVA_VERSION=17
@@ -61,45 +68,33 @@ jobs:
 
           echo "java_version=$JAVA_VERSION" >> $GITHUB_OUTPUT
 
-          if grep -qi "spring-boot" "$APP_PATH/pom.xml"; then
-            echo "framework=springboot" >> $GITHUB_OUTPUT
+          if grep -q "spring-boot" "$APP_PATH/pom.xml"; then
+            FRAMEWORK=springboot
           else
-            echo "framework=java" >> $GITHUB_OUTPUT
+            FRAMEWORK=java
           fi
+
+          echo "framework=$FRAMEWORK" >> $GITHUB_OUTPUT
 
           echo "deployment_target=cloudrun" >> $GITHUB_OUTPUT
 
-          if [ -f "$APP_PATH/Dockerfile" ]; then
-            echo "has_dockerfile=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_dockerfile=false" >> $GITHUB_OUTPUT
-          fi
+          [ -f "$APP_PATH/Dockerfile" ] \
+            && echo "has_dockerfile=true" >> $GITHUB_OUTPUT \
+            || echo "has_dockerfile=false" >> $GITHUB_OUTPUT
 
-          if [ -d "$APP_PATH/terraform" ]; then
-            echo "has_terraform=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_terraform=false" >> $GITHUB_OUTPUT
-          fi
+          [ -d "$APP_PATH/terraform" ] \
+            && echo "has_terraform=true" >> $GITHUB_OUTPUT \
+            || echo "has_terraform=false" >> $GITHUB_OUTPUT
 
-          if [ -d "$APP_PATH/.github/workflows" ]; then
-            echo "has_workflows=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_workflows=false" >> $GITHUB_OUTPUT
-          fi
+          [ -d "$APP_PATH/.github/workflows" ] \
+            && echo "has_workflows=true" >> $GITHUB_OUTPUT \
+            || echo "has_workflows=false" >> $GITHUB_OUTPUT
 
-      - name: Repository Analysis
-        run: |
+################################################################################
+# LOAD AGENTS
+################################################################################
 
-          echo "===== REPOSITORY ANALYSIS ====="
-
-          echo "Application Path: ${{ steps.detect.outputs.app_path }}"
-          echo "Language: ${{ steps.detect.outputs.language }}"
-          echo "Build Tool: ${{ steps.detect.outputs.build_tool }}"
-          echo "Framework: ${{ steps.detect.outputs.framework }}"
-          echo "Java Version: ${{ steps.detect.outputs.java_version }}"
-          echo "Deployment Target: ${{ steps.detect.outputs.deployment_target }}"
-
-  agent-decision-engine:
+  load-agents:
 
     runs-on: ubuntu-latest
 
@@ -107,11 +102,55 @@ jobs:
       - analyze-repository
 
     outputs:
+      docker_agent: ${{ steps.load.outputs.docker_agent }}
+      terraform_agent: ${{ steps.load.outputs.terraform_agent }}
+      cicd_agent: ${{ steps.load.outputs.cicd_agent }}
+
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - id: load
+        run: |
+
+          echo "docker_agent=.github/agents/docker-agent.agent.md" >> $GITHUB_OUTPUT
+          echo "terraform_agent=.github/agents/terraform-agent.agent.md" >> $GITHUB_OUTPUT
+          echo "cicd_agent=.github/agents/cicd-agent.agent.md" >> $GITHUB_OUTPUT
+
+      - name: Show Loaded Agents
+        run: |
+
+          echo "===== DOCKER AGENT ====="
+          cat .github/agents/docker-agent.agent.md
+
+          echo ""
+          echo "===== TERRAFORM AGENT ====="
+          cat .github/agents/terraform-agent.agent.md
+
+          echo ""
+          echo "===== CICD AGENT ====="
+          cat .github/agents/cicd-agent.agent.md
+
+################################################################################
+# AGENT DECISION ENGINE
+################################################################################
+
+  agent-decision-engine:
+
+    runs-on: ubuntu-latest
+
+    needs:
+      - analyze-repository
+      - load-agents
+
+    outputs:
       docker_template: ${{ steps.decision.outputs.docker_template }}
       terraform_template: ${{ steps.decision.outputs.terraform_template }}
       cicd_template: ${{ steps.decision.outputs.cicd_template }}
 
     steps:
+
+      - uses: actions/checkout@v4
 
       - name: Agent Decisions
         id: decision
@@ -129,19 +168,9 @@ jobs:
             echo "cicd_template=platform-templates/github-actions/java-maven-cloudrun" >> $GITHUB_OUTPUT
           fi
 
-      - name: Show Agent Decisions
-        run: |
-
-          echo "===== AGENT DECISIONS ====="
-
-          echo "Docker Template:"
-          echo "${{ steps.decision.outputs.docker_template }}"
-
-          echo "Terraform Template:"
-          echo "${{ steps.decision.outputs.terraform_template }}"
-
-          echo "CI/CD Template:"
-          echo "${{ steps.decision.outputs.cicd_template }}"
+################################################################################
+# GENERATE ASSETS
+################################################################################
 
   generate-assets:
 
@@ -151,10 +180,12 @@ jobs:
       - analyze-repository
       - agent-decision-engine
 
+    outputs:
+      branch_name: ${{ steps.branch.outputs.branch_name }}
+
     steps:
 
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set Application Path
         run: |
@@ -200,46 +231,79 @@ jobs:
           platform-templates/security/gitleaks/gitleaks.yml \
           "$APP_PATH/.github/workflows/gitleaks.yml"
 
-      - name: Show Generated Files
-        run: |
-
-          echo "===== GENERATED FILES ====="
-
-          find "$APP_PATH" | sort
-
-      - name: Git Status
-        run: |
-
-          echo "===== GIT STATUS ====="
-
-          git status
-
-          echo "===== CHANGED FILES ====="
-
-          git diff --name-only
-
       - name: Configure Git
         run: |
 
           git config user.name "platform-agent"
           git config user.email "platform-agent@users.noreply.github.com"
 
-      - name: Commit Generated Assets
+      - name: Create Branch
+        id: branch
+        run: |
+
+          BRANCH_NAME=platform-agent-${{ github.run_number }}
+
+          git checkout -b $BRANCH_NAME
+
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+      - name: Commit Changes
         run: |
 
           git add .
 
           if git diff --cached --quiet; then
-            echo "No changes detected."
+            echo "No changes detected"
             exit 0
           fi
 
           git commit -m "Platform Agent generated DevOps assets"
 
-      - name: Push Changes
+      - name: Push Branch
         run: |
 
-          git push origin HEAD:main
+          git push origin HEAD
+
+################################################################################
+# CREATE PR
+################################################################################
+
+  create-pr:
+
+    runs-on: ubuntu-latest
+
+    needs:
+      - generate-assets
+
+    steps:
+
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+          title: Platform Agent Generated DevOps Assets
+
+          branch: platform-agent-${{ github.run_number }}
+
+          base: main
+
+          body: |
+
+            ## Platform Agent
+
+            Generated Assets:
+
+            - Dockerfile
+            - Terraform
+            - CI/CD Workflow
+            - Trivy
+            - Gitleaks
+
+            Please review.
+
+################################################################################
+# PLATFORM REVIEW
+################################################################################
 
   platform-review:
 
@@ -247,8 +311,10 @@ jobs:
 
     needs:
       - analyze-repository
+      - load-agents
       - agent-decision-engine
       - generate-assets
+      - create-pr
 
     steps:
 
@@ -276,15 +342,15 @@ jobs:
           Deployment Target:
           - ${{ needs.analyze-repository.outputs.deployment_target }}
 
-          ## Agent Decisions
+          ## Selected Templates
 
-          Docker Template:
+          Docker:
           - ${{ needs.agent-decision-engine.outputs.docker_template }}
 
-          Terraform Template:
+          Terraform:
           - ${{ needs.agent-decision-engine.outputs.terraform_template }}
 
-          CI/CD Template:
+          CI/CD:
           - ${{ needs.agent-decision-engine.outputs.cicd_template }}
 
           ## Generated Assets
@@ -299,7 +365,7 @@ jobs:
 
           - Enable CodeQL
           - Enable Dependabot
-          - Enable SBOM Generation
+          - Enable SBOM
           - Enable Container Signing
 
           EOF
