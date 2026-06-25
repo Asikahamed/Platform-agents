@@ -1,0 +1,10 @@
+name: gcp-cloudrun
+
+cloud: gcp
+
+supported_languages:
+  - java
+
+deployment_target: cloudrun
+
+template_path: platform-templates/terraform/gcp-cloudrun
