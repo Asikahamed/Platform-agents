@@ -9,6 +9,12 @@ on:
       - main
   workflow_dispatch:
 
+    paths-ignore:
+        - "sample-java-app/Dockerfile"
+        - "sample-java-app/.dockerignore"
+        - "sample-java-app/terraform/**"
+        - "sample-java-app/.github/workflows/**"
+
 permissions:
   contents: write
   pull-requests: write
@@ -206,7 +212,6 @@ jobs:
 
       - name: Configure Git
         run: |
-
           git config user.name "platform-agent"
           git config user.email "platform-agent@users.noreply.github.com"
 
@@ -255,21 +260,24 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
 
-          gh pr create \
-            --base main \
-            --head "${{ needs.generate-assets.outputs.branch_name }}" \
-            --title "Platform Agent Generated DevOps Assets" \
-            --body "
+          gh api \
+            repos/${{ github.repository }}/pulls \
+            -f title='Platform Agent Generated DevOps Assets' \
+            -f head='${{ needs.generate-assets.outputs.branch_name }}' \
+            -f base='main' \
+            -f body='
           ## Platform Agent
 
-          Generated:
+          Generated Assets:
 
           - Dockerfile
           - Terraform
-          - GitHub Actions
+          - CI/CD Workflow
           - Trivy
           - Gitleaks
-          "
+
+          Please review and merge.
+          '
 
 ################################################################################
 # PLATFORM REVIEW
