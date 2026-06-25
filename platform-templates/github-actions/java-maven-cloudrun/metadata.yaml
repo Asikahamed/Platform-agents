@@ -1,0 +1,9 @@
+name: java-maven-cloudrun
+
+language: java
+
+build_tool: maven
+
+deployment_target: cloudrun
+
+template_path: platform-templates/github-actions/java-maven-cloudrun

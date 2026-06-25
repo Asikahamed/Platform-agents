@@ -1,0 +1,12 @@
+name: java-docker
+
+language: java
+
+build_tools:
+  - maven
+  - gradle
+
+deployment_targets:
+  - cloudrun
+
+template_path: platform-templates/docker/java
