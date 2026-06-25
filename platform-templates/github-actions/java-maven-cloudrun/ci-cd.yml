@@ -1,4 +1,4 @@
-name: Platform Agent
+name: Java Maven Cloud Run CI/CD
 
 on:
   push:
@@ -8,97 +8,127 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: YOUR_GCP_PROJECT_ID
+  REGION: asia-south1
+  GAR_REPOSITORY: platform-agent
+  SERVICE_NAME: sample-java-app
 
 jobs:
 
-  analyze-repository:
+  build-test:
 
     runs-on: ubuntu-latest
 
-    outputs:
-      has_dockerfile: ${{ steps.detect.outputs.has_dockerfile }}
-      has_terraform: ${{ steps.detect.outputs.has_terraform }}
-      has_workflows: ${{ steps.detect.outputs.has_workflows }}
+    defaults:
+      run:
+        working-directory: sample-java-app
 
     steps:
 
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Detect Assets
-        id: detect
-        run: |
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
 
-          if [ -f "sample-java-app/Dockerfile" ]; then
-            echo "has_dockerfile=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_dockerfile=false" >> $GITHUB_OUTPUT
-          fi
+      - name: Build
+        run: mvn clean package
 
-          if [ -d "sample-java-app/terraform" ]; then
-            echo "has_terraform=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_terraform=false" >> $GITHUB_OUTPUT
-          fi
+      - name: Run Tests
+        run: mvn test
 
-          if [ -d "sample-java-app/.github/workflows" ]; then
-            echo "has_workflows=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_workflows=false" >> $GITHUB_OUTPUT
-          fi
-
-  generate-assets:
+  docker-build:
 
     runs-on: ubuntu-latest
 
     needs:
-      - analyze-repository
+      - build-test
+
+    defaults:
+      run:
+        working-directory: sample-java-app
 
     steps:
 
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Generate Docker Assets
-        if: needs.analyze-repository.outputs.has_dockerfile == 'false'
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
         run: |
+          gcloud auth configure-docker \
+          ${{ env.REGION }}-docker.pkg.dev
 
-          cp platform-templates/docker/java/Dockerfile \
-             sample-java-app/Dockerfile
-
-          cp platform-templates/docker/java/.dockerignore \
-             sample-java-app/.dockerignore
-
-      - name: Generate Terraform Assets
-        if: needs.analyze-repository.outputs.has_terraform == 'false'
+      - name: Build Docker Image
         run: |
+          docker build \
+          -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+          .
 
-          mkdir -p sample-java-app/terraform
-
-          cp -R \
-          platform-templates/terraform/gcp-cloudrun/* \
-          sample-java-app/terraform/
-
-      - name: Generate GitHub Actions
-        if: needs.analyze-repository.outputs.has_workflows == 'false'
+      - name: Push Docker Image
         run: |
+          docker push \
+          ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
 
-          mkdir -p sample-java-app/.github/workflows
+  terraform-deploy:
 
-          cp \
-          platform-templates/github-actions/java-maven-cloudrun/ci-cd.yml \
-          sample-java-app/.github/workflows/ci-cd.yml
+    runs-on: ubuntu-latest
 
-          cp \
-          platform-templates/security/trivy/trivy.yml \
-          sample-java-app/.github/workflows/trivy.yml
+    needs:
+      - docker-build
 
-          cp \
-          platform-templates/security/gitleaks/gitleaks.yml \
-          sample-java-app/.github/workflows/gitleaks.yml
+    defaults:
+      run:
+        working-directory: sample-java-app/terraform
 
-      - name: Summary
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
         run: |
+          terraform plan \
+          -var="project_id=${{ env.PROJECT_ID }}" \
+          -var="region=${{ env.REGION }}" \
+          -var="service_name=${{ env.SERVICE_NAME }}" \
+          -var="image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
 
-          echo "# Platform Agent Report" >> $GITHUB_STEP_SUMMARY
-          echo "Assets generated successfully." >> $GITHUB_STEP_SUMMARY
+      - name: Terraform Apply
+        run: |
+          terraform apply -auto-approve \
+          -var="project_id=${{ env.PROJECT_ID }}" \
+          -var="region=${{ env.REGION }}" \
+          -var="service_name=${{ env.SERVICE_NAME }}" \
+          -var="image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
