@@ -87,10 +87,10 @@ jobs:
         run: |
 
           cp platform-templates/docker/java/Dockerfile \
-             "$APP_PATH/Dockerfile"
+            "$APP_PATH/Dockerfile"
 
           cp platform-templates/docker/java/.dockerignore \
-             "$APP_PATH/.dockerignore"
+            "$APP_PATH/.dockerignore"
 
       - name: Generate Terraform Assets
         if: needs.analyze-repository.outputs.has_terraform == 'false'
@@ -122,28 +122,66 @@ jobs:
 
       - name: Show Generated Files
         run: |
-          echo "Generated Assets:"
+          echo "===== GENERATED FILES ====="
           find "$APP_PATH" | sort
+
+      - name: Git Status Debug
+        run: |
+
+          echo "===== GIT STATUS ====="
+          git status
+
+          echo "===== CHANGED FILES ====="
+          git diff --name-only
+
+      - name: Configure Git
+        run: |
+
+          git config user.name "platform-agent"
+          git config user.email "platform-agent@users.noreply.github.com"
+
+      - name: Commit Generated Assets
+        run: |
+
+          git add .
+
+          if git diff --cached --quiet; then
+            echo "No changes detected."
+            exit 0
+          fi
+
+          git commit -m "Platform Agent generated DevOps assets"
+
+      - name: Push Changes
+        run: |
+          git push origin HEAD:main
 
       - name: Platform Agent Report
         run: |
 
           echo "# Platform Agent Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+
           echo "## Application" >> $GITHUB_STEP_SUMMARY
           echo "- Path: $APP_PATH" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ needs.analyze-repository.outputs.has_dockerfile }}" = "false" ]; then
-            echo "✅ Dockerfile Generated" >> $GITHUB_STEP_SUMMARY
+          if [ -f "$APP_PATH/Dockerfile" ]; then
+            echo "✅ Dockerfile Present" >> $GITHUB_STEP_SUMMARY
           fi
 
-          if [ "${{ needs.analyze-repository.outputs.has_terraform }}" = "false" ]; then
-            echo "✅ Terraform Generated" >> $GITHUB_STEP_SUMMARY
+          if [ -f "$APP_PATH/terraform/main.tf" ]; then
+            echo "✅ Terraform Present" >> $GITHUB_STEP_SUMMARY
           fi
 
-          if [ "${{ needs.analyze-repository.outputs.has_workflows }}" = "false" ]; then
-            echo "✅ GitHub Actions Generated" >> $GITHUB_STEP_SUMMARY
-            echo "✅ Trivy Generated" >> $GITHUB_STEP_SUMMARY
-            echo "✅ Gitleaks Generated" >> $GITHUB_STEP_SUMMARY
+          if [ -f "$APP_PATH/.github/workflows/ci-cd.yml" ]; then
+            echo "✅ CI/CD Workflow Present" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ -f "$APP_PATH/.github/workflows/trivy.yml" ]; then
+            echo "✅ Trivy Workflow Present" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ -f "$APP_PATH/.github/workflows/gitleaks.yml" ]; then
+            echo "✅ Gitleaks Workflow Present" >> $GITHUB_STEP_SUMMARY
           fi
