@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
+      app_path: ${{ steps.detect.outputs.app_path }}
       has_dockerfile: ${{ steps.detect.outputs.has_dockerfile }}
       has_terraform: ${{ steps.detect.outputs.has_terraform }}
       has_workflows: ${{ steps.detect.outputs.has_workflows }}
@@ -26,27 +27,45 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - name: Detect Assets
+      - name: Detect Java Application
         id: detect
         run: |
 
-          if [ -f "sample-java-app/Dockerfile" ]; then
+          APP_PATH=$(find . -name pom.xml | head -1 | xargs dirname)
+
+          if [ -z "$APP_PATH" ]; then
+            echo "No pom.xml found"
+            exit 1
+          fi
+
+          echo "Java application found at: $APP_PATH"
+
+          echo "app_path=$APP_PATH" >> $GITHUB_OUTPUT
+
+          if [ -f "$APP_PATH/Dockerfile" ]; then
             echo "has_dockerfile=true" >> $GITHUB_OUTPUT
           else
             echo "has_dockerfile=false" >> $GITHUB_OUTPUT
           fi
 
-          if [ -d "sample-java-app/terraform" ]; then
+          if [ -d "$APP_PATH/terraform" ]; then
             echo "has_terraform=true" >> $GITHUB_OUTPUT
           else
             echo "has_terraform=false" >> $GITHUB_OUTPUT
           fi
 
-          if [ -d "sample-java-app/.github/workflows" ]; then
+          if [ -d "$APP_PATH/.github/workflows" ]; then
             echo "has_workflows=true" >> $GITHUB_OUTPUT
           else
             echo "has_workflows=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: Repository Analysis
+        run: |
+          echo "Application Path: ${{ steps.detect.outputs.app_path }}"
+          echo "Dockerfile: ${{ steps.detect.outputs.has_dockerfile }}"
+          echo "Terraform: ${{ steps.detect.outputs.has_terraform }}"
+          echo "Workflows: ${{ steps.detect.outputs.has_workflows }}"
 
   generate-assets:
 
@@ -59,46 +78,72 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      - name: Set Application Path
+        run: |
+          echo "APP_PATH=${{ needs.analyze-repository.outputs.app_path }}" >> $GITHUB_ENV
+
       - name: Generate Docker Assets
         if: needs.analyze-repository.outputs.has_dockerfile == 'false'
         run: |
 
           cp platform-templates/docker/java/Dockerfile \
-             sample-java-app/Dockerfile
+             "$APP_PATH/Dockerfile"
 
           cp platform-templates/docker/java/.dockerignore \
-             sample-java-app/.dockerignore
+             "$APP_PATH/.dockerignore"
 
       - name: Generate Terraform Assets
         if: needs.analyze-repository.outputs.has_terraform == 'false'
         run: |
 
-          mkdir -p sample-java-app/terraform
+          mkdir -p "$APP_PATH/terraform"
 
           cp -R \
-          platform-templates/terraform/gcp-cloudrun/* \
-          sample-java-app/terraform/
+            platform-templates/terraform/gcp-cloudrun/* \
+            "$APP_PATH/terraform/"
 
-      - name: Generate GitHub Actions
+      - name: Generate CI/CD Assets
         if: needs.analyze-repository.outputs.has_workflows == 'false'
         run: |
 
-          mkdir -p sample-java-app/.github/workflows
+          mkdir -p "$APP_PATH/.github/workflows"
 
           cp \
-          platform-templates/github-actions/java-maven-cloudrun/ci-cd.yml \
-          sample-java-app/.github/workflows/ci-cd.yml
+            platform-templates/github-actions/java-maven-cloudrun/ci-cd.yml \
+            "$APP_PATH/.github/workflows/ci-cd.yml"
 
           cp \
-          platform-templates/security/trivy/trivy.yml \
-          sample-java-app/.github/workflows/trivy.yml
+            platform-templates/security/trivy/trivy.yml \
+            "$APP_PATH/.github/workflows/trivy.yml"
 
           cp \
-          platform-templates/security/gitleaks/gitleaks.yml \
-          sample-java-app/.github/workflows/gitleaks.yml
+            platform-templates/security/gitleaks/gitleaks.yml \
+            "$APP_PATH/.github/workflows/gitleaks.yml"
 
-      - name: Summary
+      - name: Show Generated Files
+        run: |
+          echo "Generated Assets:"
+          find "$APP_PATH" | sort
+
+      - name: Platform Agent Report
         run: |
 
           echo "# Platform Agent Report" >> $GITHUB_STEP_SUMMARY
-          echo "Assets generated successfully." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Application" >> $GITHUB_STEP_SUMMARY
+          echo "- Path: $APP_PATH" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.analyze-repository.outputs.has_dockerfile }}" = "false" ]; then
+            echo "✅ Dockerfile Generated" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.analyze-repository.outputs.has_terraform }}" = "false" ]; then
+            echo "✅ Terraform Generated" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.analyze-repository.outputs.has_workflows }}" = "false" ]; then
+            echo "✅ GitHub Actions Generated" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Trivy Generated" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Gitleaks Generated" >> $GITHUB_STEP_SUMMARY
+          fi
