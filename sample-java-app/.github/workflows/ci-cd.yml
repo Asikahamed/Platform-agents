@@ -1,0 +1,134 @@
+name: Java Maven Cloud Run CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: YOUR_GCP_PROJECT_ID
+  REGION: asia-south1
+  GAR_REPOSITORY: platform-agent
+  SERVICE_NAME: sample-java-app
+
+jobs:
+
+  build-test:
+
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: sample-java-app
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+
+      - name: Build
+        run: mvn clean package
+
+      - name: Run Tests
+        run: mvn test
+
+  docker-build:
+
+    runs-on: ubuntu-latest
+
+    needs:
+      - build-test
+
+    defaults:
+      run:
+        working-directory: sample-java-app
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: |
+          gcloud auth configure-docker \
+          ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Build Docker Image
+        run: |
+          docker build \
+          -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+          .
+
+      - name: Push Docker Image
+        run: |
+          docker push \
+          ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+
+  terraform-deploy:
+
+    runs-on: ubuntu-latest
+
+    needs:
+      - docker-build
+
+    defaults:
+      run:
+        working-directory: sample-java-app/terraform
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+          -var="project_id=${{ env.PROJECT_ID }}" \
+          -var="region=${{ env.REGION }}" \
+          -var="service_name=${{ env.SERVICE_NAME }}" \
+          -var="image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+
+      - name: Terraform Apply
+        run: |
+          terraform apply -auto-approve \
+          -var="project_id=${{ env.PROJECT_ID }}" \
+          -var="region=${{ env.REGION }}" \
+          -var="service_name=${{ env.SERVICE_NAME }}" \
+          -var="image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
