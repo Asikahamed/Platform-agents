@@ -177,6 +177,28 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           path: platform
 
+      - name: Debug Platform Checkout
+        run: |
+
+          echo "Workspace:"
+          pwd
+
+          echo ""
+          echo "Root:"
+          ls -la
+
+          echo ""
+          echo "Platform folder:"
+          ls -la platform || true
+
+          echo ""
+          echo "Platform .github:"
+          ls -la platform/.github || true
+
+          echo ""
+          echo "Platform agents:"
+          ls -la platform/.github/agents || true
+
       ############################################################
       # Load Agent Prompts
       ############################################################
