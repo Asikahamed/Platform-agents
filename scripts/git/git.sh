@@ -7,6 +7,20 @@ echo "Platform Agent - Git Operations"
 echo "========================================="
 
 ##############################################
+# Validate Environment
+##############################################
+
+if [ -z "$GH_TOKEN" ]; then
+    echo "ERROR: GH_TOKEN is not set."
+    exit 1
+fi
+
+if [ -z "$GITHUB_REPOSITORY" ]; then
+    echo "ERROR: GITHUB_REPOSITORY is not set."
+    exit 1
+fi
+
+##############################################
 # Configure Git
 ##############################################
 
@@ -14,6 +28,17 @@ git config user.name "platform-agent"
 git config user.email "platform-agent@users.noreply.github.com"
 
 echo "Git configured."
+
+##############################################
+# Configure Authenticated Remote
+##############################################
+
+echo "Configuring authenticated remote..."
+
+git remote set-url origin \
+"https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+git remote -v
 
 ##############################################
 # Create Feature Branch
@@ -34,7 +59,7 @@ echo "branch_name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
 git add .
 
 ##############################################
-# Check if Anything Changed
+# Check for Changes
 ##############################################
 
 if git diff --cached --quiet; then
@@ -65,7 +90,7 @@ git commit -m "Platform Agent generated DevOps assets"
 
 echo "Pushing branch..."
 
-git push origin "$BRANCH_NAME"
+git push --set-upstream origin "$BRANCH_NAME"
 
 ##############################################
 # Summary
@@ -76,7 +101,8 @@ echo "========================================="
 echo "Git Summary"
 echo "========================================="
 
-echo "Branch : $BRANCH_NAME"
+echo "Repository : $GITHUB_REPOSITORY"
+echo "Branch     : $BRANCH_NAME"
 
 echo ""
 
