@@ -94,7 +94,7 @@ fi
 # GitHub Actions
 ##############################################################
 
-if [ ! -d "$TARGET_DIR/.github/workflows" ]; then
+if [ "$HAS_WORKFLOWS" = "false" ]; then
 
     echo "Generating GitHub Actions..."
 
@@ -104,23 +104,9 @@ if [ ! -d "$TARGET_DIR/.github/workflows" ]; then
       "$PLATFORM_HOME/$CICD_TEMPLATE/ci-cd.yml" \
       "$TARGET_DIR/.github/workflows/ci-cd.yml"
 
-    # Optional Security Workflows
-
-    if [ -f "$PLATFORM_HOME/platform-templates/security/trivy/trivy.yml" ]; then
-        cp \
-          "$PLATFORM_HOME/platform-templates/security/trivy/trivy.yml" \
-          "$TARGET_DIR/.github/workflows/trivy.yml"
-    fi
-
-    if [ -f "$PLATFORM_HOME/platform-templates/security/gitleaks/gitleaks.yml" ]; then
-        cp \
-          "$PLATFORM_HOME/platform-templates/security/gitleaks/gitleaks.yml" \
-          "$TARGET_DIR/.github/workflows/gitleaks.yml"
-    fi
-
 else
 
-    echo "GitHub workflows already exist. Skipping."
+    echo "Application CI/CD pipeline already exists. Skipping."
 
 fi
 
