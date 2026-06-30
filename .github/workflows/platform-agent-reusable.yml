@@ -97,20 +97,17 @@ jobs:
 
     steps:
 
-      - name: Run Analyze Script
-        id: analysis
-
+      - name: Analyze Repository
         env:
           APP_HOME: ${{ needs.checkout.outputs.app_home }}
-
         run: |
 
           chmod +x \
-          ${{ needs.checkout.outputs.platform_home }}/scripts/analyze.sh
+            "${{ needs.checkout.outputs.platform_home }}/scripts/analysis/analyze.sh"
 
           cd "${APP_HOME}"
 
-          "${{ needs.checkout.outputs.platform_home }}/scripts/analyze.sh"
+          "${{ needs.checkout.outputs.platform_home }}/scripts/analysis/analyze.sh"
 
 ################################################################################
 # Load Agents
