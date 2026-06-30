@@ -1,0 +1,314 @@
+name: Platform Agent Reusable Workflow
+
+on:
+  workflow_call:
+
+    inputs:
+
+      app_repository:
+        description: Application repository (owner/repo)
+        required: true
+        type: string
+
+      app_branch:
+        description: Branch to analyze
+        required: false
+        default: main
+        type: string
+
+    secrets:
+
+      GH_TOKEN:
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+
+################################################################################
+# Checkout Repositories
+################################################################################
+
+  checkout:
+
+    runs-on: ubuntu-latest
+
+    outputs:
+      app_home: ${{ steps.paths.outputs.app_home }}
+      platform_home: ${{ steps.paths.outputs.platform_home }}
+
+    steps:
+
+      ##############################################################
+      # Checkout Application Repository
+      ##############################################################
+
+      - name: Checkout Application Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.app_repository }}
+          ref: ${{ inputs.app_branch }}
+          token: ${{ secrets.GH_TOKEN }}
+          path: application
+          fetch-depth: 0
+
+      ##############################################################
+      # Checkout Platform Repository
+      ##############################################################
+
+      - name: Checkout Platform Repository
+        uses: actions/checkout@v4
+        with:
+          path: platform
+
+      ##############################################################
+      # Export Paths
+      ##############################################################
+
+      - id: paths
+        run: |
+
+          echo "app_home=$GITHUB_WORKSPACE/application" >> $GITHUB_OUTPUT
+
+          echo "platform_home=$GITHUB_WORKSPACE/platform" >> $GITHUB_OUTPUT
+
+################################################################################
+# Analyze Repository
+################################################################################
+
+  analyze:
+
+    runs-on: ubuntu-latest
+
+    needs: checkout
+
+    outputs:
+      app_path: ${{ steps.analysis.outputs.app_path }}
+      language: ${{ steps.analysis.outputs.language }}
+      build_tool: ${{ steps.analysis.outputs.build_tool }}
+      framework: ${{ steps.analysis.outputs.framework }}
+      java_version: ${{ steps.analysis.outputs.java_version }}
+      deployment_target: ${{ steps.analysis.outputs.deployment_target }}
+      has_dockerfile: ${{ steps.analysis.outputs.has_dockerfile }}
+      has_terraform: ${{ steps.analysis.outputs.has_terraform }}
+      has_workflows: ${{ steps.analysis.outputs.has_workflows }}
+
+    steps:
+
+      - name: Run Analyze Script
+        id: analysis
+
+        env:
+          APP_HOME: ${{ needs.checkout.outputs.app_home }}
+
+        run: |
+
+          chmod +x \
+          ${{ needs.checkout.outputs.platform_home }}/scripts/analyze.sh
+
+          cd "${APP_HOME}"
+
+          "${{ needs.checkout.outputs.platform_home }}/scripts/analyze.sh"
+
+################################################################################
+# Load Agents
+################################################################################
+
+  load-agents:
+
+    runs-on: ubuntu-latest
+
+    needs:
+      - checkout
+      - analyze
+
+    steps:
+
+      - name: Load Agent Prompts
+
+        env:
+          PLATFORM_HOME: ${{ needs.checkout.outputs.platform_home }}
+
+        run: |
+
+          chmod +x \
+          "$PLATFORM_HOME/scripts/load-agents.sh"
+
+          "$PLATFORM_HOME/scripts/load-agents.sh"
+
+################################################################################
+# Decision Engine
+################################################################################
+
+  decision-engine:
+
+    runs-on: ubuntu-latest
+
+    needs:
+      - checkout
+      - analyze
+      - load-agents
+
+    outputs:
+      docker_template: ${{ steps.decision.outputs.docker_template }}
+      terraform_template: ${{ steps.decision.outputs.terraform_template }}
+      cicd_template: ${{ steps.decision.outputs.cicd_template }}
+
+    steps:
+
+      - id: decision
+
+        env:
+
+          PLATFORM_HOME: ${{ needs.checkout.outputs.platform_home }}
+
+          LANGUAGE: ${{ needs.analyze.outputs.language }}
+          BUILD_TOOL: ${{ needs.analyze.outputs.build_tool }}
+          FRAMEWORK: ${{ needs.analyze.outputs.framework }}
+          DEPLOYMENT_TARGET: ${{ needs.analyze.outputs.deployment_target }}
+
+        run: |
+
+          chmod +x \
+          "$PLATFORM_HOME/scripts/decision-engine.sh"
+
+          "$PLATFORM_HOME/scripts/decision-engine.sh"
+
+################################################################################
+# Generate Assets
+################################################################################
+
+  generate-assets:
+
+    runs-on: ubuntu-latest
+
+    needs:
+      - checkout
+      - analyze
+      - decision-engine
+
+    outputs:
+      changes: ${{ steps.git.outputs.changes }}
+      branch_name: ${{ steps.git.outputs.branch_name }}
+
+    steps:
+
+      - name: Generate Assets
+
+        env:
+
+          APP_HOME: ${{ needs.checkout.outputs.app_home }}
+
+          PLATFORM_HOME: ${{ needs.checkout.outputs.platform_home }}
+
+          APP_PATH: ${{ needs.analyze.outputs.app_path }}
+
+          HAS_DOCKERFILE: ${{ needs.analyze.outputs.has_dockerfile }}
+          HAS_TERRAFORM: ${{ needs.analyze.outputs.has_terraform }}
+          HAS_WORKFLOWS: ${{ needs.analyze.outputs.has_workflows }}
+
+          DOCKER_TEMPLATE: ${{ needs.decision-engine.outputs.docker_template }}
+          TERRAFORM_TEMPLATE: ${{ needs.decision-engine.outputs.terraform_template }}
+          CICD_TEMPLATE: ${{ needs.decision-engine.outputs.cicd_template }}
+
+        run: |
+
+          chmod +x \
+          "$PLATFORM_HOME/scripts/generate-assets.sh"
+
+          "$PLATFORM_HOME/scripts/generate-assets.sh"
+
+      ##############################################################
+
+      - name: Git Operations
+        id: git
+
+        env:
+
+          APP_HOME: ${{ needs.checkout.outputs.app_home }}
+
+        run: |
+
+          chmod +x \
+          "${{ needs.checkout.outputs.platform_home }}/scripts/git.sh"
+
+          cd "$APP_HOME"
+
+          "${{ needs.checkout.outputs.platform_home }}/scripts/git.sh"
+
+################################################################################
+# Create Pull Request
+################################################################################
+
+  create-pr:
+
+    if: needs.generate-assets.outputs.changes == 'true'
+
+    runs-on: ubuntu-latest
+
+    needs:
+      - checkout
+      - generate-assets
+
+    steps:
+
+      - name: Create Pull Request
+
+        env:
+
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+          GITHUB_REPOSITORY: ${{ inputs.app_repository }}
+
+          BRANCH_NAME: ${{ needs.generate-assets.outputs.branch_name }}
+
+          CHANGES: ${{ needs.generate-assets.outputs.changes }}
+
+        run: |
+
+          chmod +x \
+          "${{ needs.checkout.outputs.platform_home }}/scripts/create-pr.sh"
+
+          "${{ needs.checkout.outputs.platform_home }}/scripts/create-pr.sh"
+
+################################################################################
+# Review
+################################################################################
+
+  review:
+
+    runs-on: ubuntu-latest
+
+    needs:
+      - checkout
+      - analyze
+      - decision-engine
+      - generate-assets
+
+    steps:
+
+      - name: Platform Review
+
+        env:
+
+          LANGUAGE: ${{ needs.analyze.outputs.language }}
+          FRAMEWORK: ${{ needs.analyze.outputs.framework }}
+          BUILD_TOOL: ${{ needs.analyze.outputs.build_tool }}
+          JAVA_VERSION: ${{ needs.analyze.outputs.java_version }}
+          DEPLOYMENT_TARGET: ${{ needs.analyze.outputs.deployment_target }}
+
+          DOCKER_TEMPLATE: ${{ needs.decision-engine.outputs.docker_template }}
+          TERRAFORM_TEMPLATE: ${{ needs.decision-engine.outputs.terraform_template }}
+          CICD_TEMPLATE: ${{ needs.decision-engine.outputs.cicd_template }}
+
+          BRANCH_NAME: ${{ needs.generate-assets.outputs.branch_name }}
+          CHANGES: ${{ needs.generate-assets.outputs.changes }}
+
+        run: |
+
+          chmod +x \
+          "${{ needs.checkout.outputs.platform_home }}/scripts/review.sh"
+
+          "${{ needs.checkout.outputs.platform_home }}/scripts/review.sh"
