@@ -184,12 +184,13 @@ jobs:
       - name: Load Agent Prompts
         env:
           PLATFORM_HOME: ${{ github.workspace }}/platform
+
         run: |
 
-          chmod +x \
-            "$PLATFORM_HOME/scripts/agents/load-agents.sh"
+          chmod +x "$PLATFORM_HOME/scripts/agents/load-agents.sh"
 
           "$PLATFORM_HOME/scripts/agents/load-agents.sh"
+
 
 ################################################################################
 # Decision Engine
