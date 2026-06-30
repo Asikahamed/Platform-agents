@@ -153,17 +153,43 @@ jobs:
 
     steps:
 
+      ############################################################
+      # Checkout Application Repository
+      ############################################################
+
+      - name: Checkout Application Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.app_repository }}
+          ref: ${{ inputs.app_branch }}
+          token: ${{ secrets.GH_TOKEN }}
+          path: application
+
+      ############################################################
+      # Checkout Platform Repository
+      ############################################################
+
+      - name: Checkout Platform Repository
+        uses: actions/checkout@v4
+        with:
+          repository: Asikahamed/Platform-agents
+          ref: main
+          token: ${{ secrets.GH_TOKEN }}
+          path: platform
+
+      ############################################################
+      # Load Agent Prompts
+      ############################################################
+
       - name: Load Agent Prompts
-
         env:
-          PLATFORM_HOME: ${{ needs.checkout.outputs.platform_home }}
-
+          PLATFORM_HOME: ${{ github.workspace }}/platform
         run: |
 
           chmod +x \
-          "$PLATFORM_HOME/scripts/load-agents.sh"
+            "$PLATFORM_HOME/scripts/agents/load-agents.sh"
 
-          "$PLATFORM_HOME/scripts/load-agents.sh"
+          "$PLATFORM_HOME/scripts/agents/load-agents.sh"
 
 ################################################################################
 # Decision Engine
