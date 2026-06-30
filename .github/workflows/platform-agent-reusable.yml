@@ -199,6 +199,10 @@ jobs:
           echo "Platform agents:"
           ls -la platform/.github/agents || true
 
+      - name: Show load-agents.sh
+        run: |
+          cat "$PLATFORM_HOME/scripts/agents/load-agents.sh"
+
       ############################################################
       # Load Agent Prompts
       ############################################################
