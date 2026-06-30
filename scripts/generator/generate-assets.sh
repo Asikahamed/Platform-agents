@@ -6,45 +6,63 @@ echo "========================================="
 echo "Platform Agent - Generate DevOps Assets"
 echo "========================================="
 
-##############################################
-# Validate Inputs
-##############################################
+##############################################################
+# Validate Required Variables
+##############################################################
 
-if [ -z "$APP_PATH" ]; then
-    echo "APP_PATH is empty"
-    exit 1
-fi
+REQUIRED_VARS=(
+  APP_HOME
+  APP_PATH
+  PLATFORM_HOME
+  DOCKER_TEMPLATE
+  TERRAFORM_TEMPLATE
+  CICD_TEMPLATE
+)
 
-if [ -z "$DOCKER_TEMPLATE" ]; then
-    echo "DOCKER_TEMPLATE is empty"
-    exit 1
-fi
+for VAR in "${REQUIRED_VARS[@]}"; do
+    if [ -z "${!VAR}" ]; then
+        echo "ERROR: $VAR is not set."
+        exit 1
+    fi
+done
 
-if [ -z "$TERRAFORM_TEMPLATE" ]; then
-    echo "TERRAFORM_TEMPLATE is empty"
-    exit 1
-fi
+##############################################################
+# Directories
+##############################################################
 
-if [ -z "$CICD_TEMPLATE" ]; then
-    echo "CICD_TEMPLATE is empty"
-    exit 1
-fi
+TARGET_DIR="$APP_HOME/$APP_PATH"
 
+echo "Application Home : $APP_HOME"
 echo "Application Path : $APP_PATH"
+echo "Target Directory : $TARGET_DIR"
+echo "Platform Home    : $PLATFORM_HOME"
 
-##############################################
+echo ""
+
+##############################################################
+# Validate Target Directory
+##############################################################
+
+if [ ! -d "$TARGET_DIR" ]; then
+    echo "ERROR: Target directory does not exist."
+    exit 1
+fi
+
+##############################################################
 # Docker Assets
-##############################################
+##############################################################
 
-if [ ! -f "$APP_PATH/Dockerfile" ]; then
+if [ ! -f "$TARGET_DIR/Dockerfile" ]; then
 
-    echo "Generating Dockerfile..."
+    echo "Generating Docker assets..."
 
-    cp "$PLATFORM_HOME/platform-templates/docker/java/Dockerfile" \
-       "$APP_PATH/Dockerfile"
+    cp \
+      "$PLATFORM_HOME/$DOCKER_TEMPLATE/Dockerfile" \
+      "$TARGET_DIR/Dockerfile"
 
-    cp "$PLATFORM_HOME/platform-templates/docker/java/.dockerignore" \
-       "$APP_PATH/.dockerignore""
+    cp \
+      "$PLATFORM_HOME/$DOCKER_TEMPLATE/.dockerignore" \
+      "$TARGET_DIR/.dockerignore"
 
 else
 
@@ -52,19 +70,19 @@ else
 
 fi
 
-##############################################
+##############################################################
 # Terraform Assets
-##############################################
+##############################################################
 
-if [ ! -d "$APP_PATH/terraform" ]; then
+if [ ! -d "$TARGET_DIR/terraform" ]; then
 
-    echo "Generating Terraform..."
+    echo "Generating Terraform assets..."
 
-    mkdir -p "$APP_PATH/terraform"
+    mkdir -p "$TARGET_DIR/terraform"
 
     cp -R \
-    "$PLATFORM_HOME/platform-templates/terraform/gcp-cloudrun/"* \
-    "$APP_PATH/terraform/"
+      "$PLATFORM_HOME/$TERRAFORM_TEMPLATE/"* \
+      "$TARGET_DIR/terraform/"
 
 else
 
@@ -72,19 +90,33 @@ else
 
 fi
 
-##############################################
+##############################################################
 # GitHub Actions
-##############################################
+##############################################################
 
-if [ ! -d "$APP_PATH/.github/workflows" ]; then
+if [ ! -d "$TARGET_DIR/.github/workflows" ]; then
 
     echo "Generating GitHub Actions..."
 
-    mkdir -p "$APP_PATH/.github/workflows"
+    mkdir -p "$TARGET_DIR/.github/workflows"
 
     cp \
-    "$PLATFORM_HOME/platform-templates/github-actions/java-maven-cloudrun/ci-cd.yml" \
-    "$APP_PATH/.github/workflows/ci-cd.yml"
+      "$PLATFORM_HOME/$CICD_TEMPLATE/ci-cd.yml" \
+      "$TARGET_DIR/.github/workflows/ci-cd.yml"
+
+    # Optional Security Workflows
+
+    if [ -f "$PLATFORM_HOME/platform-templates/security/trivy/trivy.yml" ]; then
+        cp \
+          "$PLATFORM_HOME/platform-templates/security/trivy/trivy.yml" \
+          "$TARGET_DIR/.github/workflows/trivy.yml"
+    fi
+
+    if [ -f "$PLATFORM_HOME/platform-templates/security/gitleaks/gitleaks.yml" ]; then
+        cp \
+          "$PLATFORM_HOME/platform-templates/security/gitleaks/gitleaks.yml" \
+          "$TARGET_DIR/.github/workflows/gitleaks.yml"
+    fi
 
 else
 
@@ -92,30 +124,36 @@ else
 
 fi
 
-##############################################
-# Generated Assets Summary
-##############################################
+##############################################################
+# Generated Assets
+##############################################################
 
 echo ""
 echo "========================================="
 echo "Generated Assets"
 echo "========================================="
 
-find "$APP_PATH" \
-    \( -name Dockerfile \
+find "$TARGET_DIR" \
+    \( \
+    -name Dockerfile \
     -o -name ".dockerignore" \
     -o -name "*.tf" \
-    -o -name "*.yml" \)
+    -o -name "*.tfvars" \
+    -o -name "*.yml" \
+    -o -name "*.yaml" \
+    \)
 
 echo ""
 
-##############################################
+##############################################################
 # Git Status
-##############################################
+##############################################################
 
 echo "========================================="
 echo "Git Status"
 echo "========================================="
+
+cd "$APP_HOME"
 
 git status
 
@@ -125,4 +163,6 @@ git diff --name-only || true
 
 echo ""
 
-echo "Asset generation completed."
+echo "========================================="
+echo "Platform Agent completed successfully."
+echo "========================================="
