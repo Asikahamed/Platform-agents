@@ -258,94 +258,94 @@ jobs:
 # Generate Assets
 ################################################################################
 
-generate-assets:
+  generate-assets:
 
-  runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
 
-  needs:
-    - checkout
-    - analyze
-    - decision-engine
+    needs:
+      - checkout
+      - analyze
+      - decision-engine
 
-  outputs:
-    changes: ${{ steps.git.outputs.changes }}
-    branch_name: ${{ steps.git.outputs.branch_name }}
+    outputs:
+      changes: ${{ steps.git.outputs.changes }}
+      branch_name: ${{ steps.git.outputs.branch_name }}
 
-  steps:
+    steps:
 
-    ############################################################
-    # Checkout Application Repository
-    ############################################################
+      ############################################################
+      # Checkout Application Repository
+      ############################################################
 
-    - name: Checkout Application Repository
-      uses: actions/checkout@v4
-      with:
-        repository: ${{ inputs.app_repository }}
-        ref: ${{ inputs.app_branch }}
-        token: ${{ secrets.GH_TOKEN }}
-        path: application
-        fetch-depth: 0
+      - name: Checkout Application Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.app_repository }}
+          ref: ${{ inputs.app_branch }}
+          token: ${{ secrets.GH_TOKEN }}
+          path: application
+          fetch-depth: 0
 
-    ############################################################
-    # Checkout Platform Repository
-    ############################################################
+      ############################################################
+      # Checkout Platform Repository
+      ############################################################
 
-    - name: Checkout Platform Repository
-      uses: actions/checkout@v4
-      with:
-        repository: Asikahamed/Platform-agents
-        ref: feature/v1
-        token: ${{ secrets.GH_TOKEN }}
-        path: platform
+      - name: Checkout Platform Repository
+        uses: actions/checkout@v4
+        with:
+          repository: Asikahamed/Platform-agents
+          ref: feature/v1
+          token: ${{ secrets.GH_TOKEN }}
+          path: platform
 
-    ############################################################
-    # Generate DevOps Assets
-    ############################################################
+      ############################################################
+      # Generate DevOps Assets
+      ############################################################
 
-    - name: Generate Assets
+      - name: Generate Assets
 
-      env:
+        env:
 
-        APP_HOME: ${{ github.workspace }}/application
-        PLATFORM_HOME: ${{ github.workspace }}/platform
+          APP_HOME: ${{ github.workspace }}/application
+          PLATFORM_HOME: ${{ github.workspace }}/platform
 
-        APP_PATH: ${{ needs.analyze.outputs.app_path }}
+          APP_PATH: ${{ needs.analyze.outputs.app_path }}
 
-        HAS_DOCKERFILE: ${{ needs.analyze.outputs.has_dockerfile }}
-        HAS_TERRAFORM: ${{ needs.analyze.outputs.has_terraform }}
-        HAS_WORKFLOWS: ${{ needs.analyze.outputs.has_workflows }}
+          HAS_DOCKERFILE: ${{ needs.analyze.outputs.has_dockerfile }}
+          HAS_TERRAFORM: ${{ needs.analyze.outputs.has_terraform }}
+          HAS_WORKFLOWS: ${{ needs.analyze.outputs.has_workflows }}
 
-        DOCKER_TEMPLATE: ${{ needs.decision-engine.outputs.docker_template }}
-        TERRAFORM_TEMPLATE: ${{ needs.decision-engine.outputs.terraform_template }}
-        CICD_TEMPLATE: ${{ needs.decision-engine.outputs.cicd_template }}
+          DOCKER_TEMPLATE: ${{ needs.decision-engine.outputs.docker_template }}
+          TERRAFORM_TEMPLATE: ${{ needs.decision-engine.outputs.terraform_template }}
+          CICD_TEMPLATE: ${{ needs.decision-engine.outputs.cicd_template }}
 
-      run: |
+        run: |
 
-        chmod +x \
+          chmod +x \
+            "$PLATFORM_HOME/scripts/generator/generate-assets.sh"
+
           "$PLATFORM_HOME/scripts/generator/generate-assets.sh"
 
-        "$PLATFORM_HOME/scripts/generator/generate-assets.sh"
+      ############################################################
+      # Git Operations
+      ############################################################
 
-    ############################################################
-    # Git Operations
-    ############################################################
+      - name: Git Operations
+        id: git
 
-    - name: Git Operations
-      id: git
+        env:
 
-      env:
+          APP_HOME: ${{ github.workspace }}/application
+          PLATFORM_HOME: ${{ github.workspace }}/platform
 
-        APP_HOME: ${{ github.workspace }}/application
-        PLATFORM_HOME: ${{ github.workspace }}/platform
+        run: |
 
-      run: |
+          chmod +x \
+            "$PLATFORM_HOME/scripts/git/git.sh"
 
-        chmod +x \
+          cd "$APP_HOME"
+
           "$PLATFORM_HOME/scripts/git/git.sh"
-
-        cd "$APP_HOME"
-
-        "$PLATFORM_HOME/scripts/git/git.sh"
 
 ################################################################################
 # Create Pull Request
