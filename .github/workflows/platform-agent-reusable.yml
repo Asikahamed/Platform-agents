@@ -100,17 +100,44 @@ jobs:
 
     steps:
 
+      ############################################################
+      # Checkout Application Repository
+      ############################################################
+
+      - name: Checkout Application Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.app_repository }}
+          ref: ${{ inputs.app_branch }}
+          token: ${{ secrets.GH_TOKEN }}
+          path: application
+
+      ############################################################
+      # Checkout Platform Repository
+      ############################################################
+
+      - name: Checkout Platform Repository
+        uses: actions/checkout@v4
+        with:
+          repository: Asikahamed/Platform-agents
+          path: platform
+
+      ############################################################
+      # Analyze
+      ############################################################
+
       - name: Analyze Repository
+        id: analysis
         env:
-          APP_HOME: ${{ needs.checkout.outputs.app_home }}
+          APP_HOME: ${{ github.workspace }}/application
+          PLATFORM_HOME: ${{ github.workspace }}/platform
         run: |
 
-          chmod +x \
-            "${{ needs.checkout.outputs.platform_home }}/scripts/analysis/analyze.sh"
+          chmod +x "$PLATFORM_HOME/scripts/analysis/analyze.sh"
 
-          cd "${APP_HOME}"
+          cd "$APP_HOME"
 
-          "${{ needs.checkout.outputs.platform_home }}/scripts/analysis/analyze.sh"
+          "$PLATFORM_HOME/scripts/analysis/analyze.sh"
 
 ################################################################################
 # Load Agents
