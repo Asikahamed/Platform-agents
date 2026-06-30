@@ -227,9 +227,9 @@ jobs:
         run: |
 
           chmod +x \
-          "$PLATFORM_HOME/scripts/decision-engine.sh"
+            "$PLATFORM_HOME/scripts/agents/decision-engine.sh"
 
-          "$PLATFORM_HOME/scripts/decision-engine.sh"
+          "$PLATFORM_HOME/scripts/agents/decision-engine.sh"
 
 ################################################################################
 # Generate Assets
