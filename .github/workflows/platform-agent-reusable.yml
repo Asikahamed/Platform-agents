@@ -61,6 +61,9 @@ jobs:
       - name: Checkout Platform Repository
         uses: actions/checkout@v4
         with:
+          repository: Asikahamed/Platform-agents
+          ref: main
+          token: ${{ secrets.GH_TOKEN }}
           path: platform
 
       ##############################################################
