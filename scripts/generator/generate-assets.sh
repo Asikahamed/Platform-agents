@@ -40,11 +40,11 @@ if [ ! -f "$APP_PATH/Dockerfile" ]; then
 
     echo "Generating Dockerfile..."
 
-    cp "$DOCKER_TEMPLATE/Dockerfile" \
+    cp "$PLATFORM_HOME/platform-templates/docker/java/Dockerfile" \
        "$APP_PATH/Dockerfile"
 
-    cp "$DOCKER_TEMPLATE/.dockerignore" \
-       "$APP_PATH/.dockerignore"
+    cp "$PLATFORM_HOME/platform-templates/docker/java/.dockerignore" \
+       "$APP_PATH/.dockerignore""
 
 else
 
@@ -62,8 +62,9 @@ if [ ! -d "$APP_PATH/terraform" ]; then
 
     mkdir -p "$APP_PATH/terraform"
 
-    cp -R "$TERRAFORM_TEMPLATE/"* \
-          "$APP_PATH/terraform/"
+    cp -R \
+    "$PLATFORM_HOME/platform-templates/terraform/gcp-cloudrun/"* \
+    "$APP_PATH/terraform/"
 
 else
 
@@ -81,14 +82,9 @@ if [ ! -d "$APP_PATH/.github/workflows" ]; then
 
     mkdir -p "$APP_PATH/.github/workflows"
 
-    cp "$CICD_TEMPLATE/ci-cd.yml" \
-       "$APP_PATH/.github/workflows/ci-cd.yml"
-
-    cp platform-templates/security/trivy/trivy.yml \
-       "$APP_PATH/.github/workflows/trivy.yml"
-
-    cp platform-templates/security/gitleaks/gitleaks.yml \
-       "$APP_PATH/.github/workflows/gitleaks.yml"
+    cp \
+    "$PLATFORM_HOME/platform-templates/github-actions/java-maven-cloudrun/ci-cd.yml" \
+    "$APP_PATH/.github/workflows/ci-cd.yml"
 
 else
 
