@@ -121,6 +121,9 @@ jobs:
         with:
           repository: Asikahamed/Platform-agents
           path: platform
+          ref: feature/v1
+          token: ${{ secrets.GH_TOKEN }}
+
 
       ############################################################
       # Analyze
