@@ -173,53 +173,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Asikahamed/Platform-agents
-          ref: main
+          ref: feature/v1
           token: ${{ secrets.GH_TOKEN }}
           path: platform
 
-      - name: Debug Platform Checkout
-        run: |
-
-          echo "Workspace:"
-          pwd
-
-          echo ""
-          echo "Root:"
-          ls -la
-
-          echo ""
-          echo "Platform folder:"
-          ls -la platform || true
-
-          echo ""
-          echo "Platform .github:"
-          ls -la platform/.github || true
-
-          echo ""
-          echo "Platform agents:"
-          ls -la platform/.github/agents || true
-
-      - name: Debug Environment
-        env:
-          PLATFORM_HOME: ${{ needs.checkout.outputs.platform_home }}
-        run: |
-          echo "PLATFORM_HOME=$PLATFORM_HOME"
-
-          echo ""
-          echo "Current Directory:"
-          pwd
-
-          echo ""
-          echo "Platform Directory:"
-          ls -la "$PLATFORM_HOME"
-
-          echo ""
-          echo "Scripts:"
-          find "$PLATFORM_HOME/scripts" -type f
-
-          echo ""
-          echo "Show Script:"
-          cat "$PLATFORM_HOME/scripts/agents/load-agents.sh"
 
       ############################################################
       # Load Agent Prompts
