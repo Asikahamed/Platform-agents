@@ -199,8 +199,26 @@ jobs:
           echo "Platform agents:"
           ls -la platform/.github/agents || true
 
-      - name: Show load-agents.sh
+      - name: Debug Environment
+        env:
+          PLATFORM_HOME: ${{ needs.checkout.outputs.platform_home }}
         run: |
+          echo "PLATFORM_HOME=$PLATFORM_HOME"
+
+          echo ""
+          echo "Current Directory:"
+          pwd
+
+          echo ""
+          echo "Platform Directory:"
+          ls -la "$PLATFORM_HOME"
+
+          echo ""
+          echo "Scripts:"
+          find "$PLATFORM_HOME/scripts" -type f
+
+          echo ""
+          echo "Show Script:"
           cat "$PLATFORM_HOME/scripts/agents/load-agents.sh"
 
       ############################################################
