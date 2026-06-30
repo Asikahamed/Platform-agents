@@ -11,7 +11,7 @@ echo "========================================="
 ##############################################
 
 if [ -z "$PLATFORM_HOME" ]; then
-    echo "ERROR: PLATFORM_HOME environment variable is not set."
+    echo "ERROR: PLATFORM_HOME is not set."
     exit 1
 fi
 
@@ -35,12 +35,10 @@ fi
 
 DOCKER_AGENT="$AGENT_DIR/docker-agent.agent.md"
 
-if [ ! -f "$DOCKER_AGENT" ]; then
-    echo "ERROR: Docker Agent not found."
+[ -f "$DOCKER_AGENT" ] || {
+    echo "Docker Agent not found."
     exit 1
-fi
-
-echo "Loaded Docker Agent"
+}
 
 ##############################################
 # Terraform Agent
@@ -48,12 +46,10 @@ echo "Loaded Docker Agent"
 
 TERRAFORM_AGENT="$AGENT_DIR/terraform-agent.agent.md"
 
-if [ ! -f "$TERRAFORM_AGENT" ]; then
-    echo "ERROR: Terraform Agent not found."
+[ -f "$TERRAFORM_AGENT" ] || {
+    echo "Terraform Agent not found."
     exit 1
-fi
-
-echo "Loaded Terraform Agent"
+}
 
 ##############################################
 # CI/CD Agent
@@ -61,48 +57,23 @@ echo "Loaded Terraform Agent"
 
 CICD_AGENT="$AGENT_DIR/cicd-agent.agent.md"
 
-if [ ! -f "$CICD_AGENT" ]; then
-    echo "ERROR: CI/CD Agent not found."
+[ -f "$CICD_AGENT" ] || {
+    echo "CI/CD Agent not found."
     exit 1
-fi
-
-echo "Loaded CI/CD Agent"
-
+}
 
 ##############################################
 # Export Outputs
 ##############################################
 
-if [ -n "$GITHUB_OUTPUT" ]; then
-    {
-        echo "docker_agent=$DOCKER_AGENT"
-        echo "terraform_agent=$TERRAFORM_AGENT"
-        echo "cicd_agent=$CICD_AGENT"
-    } >> "$GITHUB_OUTPUT"
-fi
-
-##############################################
-# Display Loaded Agents
-##############################################
+echo "docker_agent=$DOCKER_AGENT" >> "$GITHUB_OUTPUT"
+echo "terraform_agent=$TERRAFORM_AGENT" >> "$GITHUB_OUTPUT"
+echo "cicd_agent=$CICD_AGENT" >> "$GITHUB_OUTPUT"
 
 echo ""
-echo "========== Loaded Agents =========="
-echo ""
-
-echo "Docker Agent"
-echo "----------------------------------------"
-cat "$DOCKER_AGENT"
-
-echo ""
-echo "Terraform Agent"
-echo "----------------------------------------"
-cat "$TERRAFORM_AGENT"
-
-echo ""
-echo "CI/CD Agent"
-echo "----------------------------------------"
-cat "$CICD_AGENT"
-
+echo "Loaded Docker Agent"
+echo "Loaded Terraform Agent"
+echo "Loaded CI/CD Agent"
 
 echo ""
 echo "========================================="
