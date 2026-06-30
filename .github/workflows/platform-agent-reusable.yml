@@ -212,12 +212,35 @@ jobs:
       cicd_template: ${{ steps.decision.outputs.cicd_template }}
 
     steps:
+      ############################################################
+      # Checkout Application Repository
+      ############################################################
 
-      - id: decision
+      - name: Checkout Application Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.app_repository }}
+          ref: ${{ inputs.app_branch }}
+          token: ${{ secrets.GH_TOKEN }}
+          path: application
+
+      ############################################################
+      # Checkout Platform Repository
+      ############################################################
+
+      - name: Checkout Platform Repository
+        uses: actions/checkout@v4
+        with:
+          repository: Asikahamed/Platform-agents
+          ref: feature/v1
+          token: ${{ secrets.GH_TOKEN }}
+          path: platform
+
+      - name: Decision Engine
+        id: decision
 
         env:
-
-          PLATFORM_HOME: ${{ needs.checkout.outputs.platform_home }}
+          PLATFORM_HOME: ${{ github.workspace }}/platform
 
           LANGUAGE: ${{ needs.analyze.outputs.language }}
           BUILD_TOOL: ${{ needs.analyze.outputs.build_tool }}
