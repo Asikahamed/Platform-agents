@@ -347,7 +347,7 @@ jobs:
 
           "$PLATFORM_HOME/scripts/git/git.sh"
 
-################################################################################
+  ################################################################################
 # Create Pull Request
 ################################################################################
 
@@ -363,9 +363,42 @@ jobs:
 
     steps:
 
+      ############################################################
+      # Checkout Application Repository
+      ############################################################
+
+      - name: Checkout Application Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.app_repository }}
+          ref: ${{ needs.generate-assets.outputs.branch_name }}
+          token: ${{ secrets.GH_TOKEN }}
+          path: application
+          fetch-depth: 0
+
+      ############################################################
+      # Checkout Platform Repository
+      ############################################################
+
+      - name: Checkout Platform Repository
+        uses: actions/checkout@v4
+        with:
+          repository: Asikahamed/Platform-agents
+          ref: feature/v1
+          token: ${{ secrets.GH_TOKEN }}
+          path: platform
+
+      ############################################################
+      # Create Pull Request
+      ############################################################
+
       - name: Create Pull Request
 
         env:
+
+          PLATFORM_HOME: ${{ github.workspace }}/platform
+
+          APP_HOME: ${{ github.workspace }}/application
 
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
@@ -378,11 +411,12 @@ jobs:
         run: |
 
           chmod +x \
-          "${{ needs.checkout.outputs.platform_home }}/scripts/create-pr.sh"
+            "$PLATFORM_HOME/scripts/git/create-pr.sh"
 
-          "${{ needs.checkout.outputs.platform_home }}/scripts/create-pr.sh"
+          "$PLATFORM_HOME/scripts/git/create-pr.sh"
 
-################################################################################
+  
+  ################################################################################
 # Review
 ################################################################################
 
@@ -398,26 +432,65 @@ jobs:
 
     steps:
 
+      ############################################################
+      # Checkout Application Repository
+      ############################################################
+
+      - name: Checkout Application Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.app_repository }}
+          ref: ${{ inputs.app_branch }}
+          token: ${{ secrets.GH_TOKEN }}
+          path: application
+
+      ############################################################
+      # Checkout Platform Repository
+      ############################################################
+
+      - name: Checkout Platform Repository
+        uses: actions/checkout@v4
+        with:
+          repository: Asikahamed/Platform-agents
+          ref: feature/v1
+          token: ${{ secrets.GH_TOKEN }}
+          path: platform
+
+      ############################################################
+      # Platform Review
+      ############################################################
+
       - name: Platform Review
 
         env:
 
+          PLATFORM_HOME: ${{ github.workspace }}/platform
+
+          APP_HOME: ${{ github.workspace }}/application
+
           LANGUAGE: ${{ needs.analyze.outputs.language }}
+
           FRAMEWORK: ${{ needs.analyze.outputs.framework }}
+
           BUILD_TOOL: ${{ needs.analyze.outputs.build_tool }}
+
           JAVA_VERSION: ${{ needs.analyze.outputs.java_version }}
+
           DEPLOYMENT_TARGET: ${{ needs.analyze.outputs.deployment_target }}
 
           DOCKER_TEMPLATE: ${{ needs.decision-engine.outputs.docker_template }}
+
           TERRAFORM_TEMPLATE: ${{ needs.decision-engine.outputs.terraform_template }}
+
           CICD_TEMPLATE: ${{ needs.decision-engine.outputs.cicd_template }}
 
           BRANCH_NAME: ${{ needs.generate-assets.outputs.branch_name }}
+
           CHANGES: ${{ needs.generate-assets.outputs.changes }}
 
         run: |
 
           chmod +x \
-          "${{ needs.checkout.outputs.platform_home }}/scripts/review.sh"
+            "$PLATFORM_HOME/scripts/review/review.sh"
 
-          "${{ needs.checkout.outputs.platform_home }}/scripts/review.sh"
+          "$PLATFORM_HOME/scripts/review/review.sh"
