@@ -97,10 +97,43 @@ echo "has_terraform=$HAS_TERRAFORM" >> "$GITHUB_OUTPUT"
 # GitHub Actions
 ##############################################
 
-if [ -d "$APP_PATH/.github/workflows" ]; then
-    HAS_WORKFLOWS=true
-else
-    HAS_WORKFLOWS=false
+HAS_WORKFLOWS=false
+
+WORKFLOW_DIR="$APP_PATH/.github/workflows"
+
+if [ -d "$WORKFLOW_DIR" ]; then
+
+    echo ""
+    echo "Inspecting GitHub workflows..."
+
+    for workflow in "$WORKFLOW_DIR"/*.yml "$WORKFLOW_DIR"/*.yaml; do
+
+        [ -e "$workflow" ] || continue
+
+        FILE_NAME=$(basename "$workflow")
+
+        ##########################################################
+        # Ignore Platform Agent caller workflow
+        ##########################################################
+
+        if grep -q "Platform Agent" "$workflow" && \
+           grep -q "platform-agent-reusable.yml" "$workflow"; then
+
+            echo "Ignoring Platform Agent caller workflow: $FILE_NAME"
+            continue
+
+        fi
+
+        ##########################################################
+        # Found a real CI/CD workflow
+        ##########################################################
+
+        echo "Detected application workflow: $FILE_NAME"
+        HAS_WORKFLOWS=true
+        break
+
+    done
+
 fi
 
 echo "has_workflows=$HAS_WORKFLOWS" >> "$GITHUB_OUTPUT"
