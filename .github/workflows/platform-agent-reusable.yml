@@ -121,7 +121,7 @@ jobs:
         with:
           repository: Asikahamed/Platform-agents
           path: platform
-          ref: feature/v1
+          ref: main
           token: ${{ secrets.GH_TOKEN }}
 
 
@@ -176,7 +176,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Asikahamed/Platform-agents
-          ref: feature/v1
+          ref: main
           token: ${{ secrets.GH_TOKEN }}
           path: platform
 
@@ -235,7 +235,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Asikahamed/Platform-agents
-          ref: feature/v1
+          ref: main
           token: ${{ secrets.GH_TOKEN }}
           path: platform
 
@@ -297,7 +297,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Asikahamed/Platform-agents
-          ref: feature/v1
+          ref: main
           token: ${{ secrets.GH_TOKEN }}
           path: platform
 
@@ -387,7 +387,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Asikahamed/Platform-agents
-          ref: feature/v1
+          ref: main
           token: ${{ secrets.GH_TOKEN }}
           path: platform
 
@@ -455,7 +455,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Asikahamed/Platform-agents
-          ref: feature/v1
+          ref: main
           token: ${{ secrets.GH_TOKEN }}
           path: platform
 
