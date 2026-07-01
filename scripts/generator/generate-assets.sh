@@ -10,64 +10,82 @@ echo "========================================="
 # Validate Inputs
 ##############################################
 
-if [ -z "$APP_PATH" ]; then
-    echo "APP_PATH is empty"
-    exit 1
-fi
+for VAR in APP_HOME APP_PATH DOCKER_TEMPLATE TERRAFORM_TEMPLATE CICD_TEMPLATE
+do
+    if [ -z "${!VAR}" ]; then
+        echo "ERROR: $VAR is not set."
+        exit 1
+    fi
+done
 
-if [ -z "$DOCKER_TEMPLATE" ]; then
-    echo "DOCKER_TEMPLATE is empty"
-    exit 1
-fi
+TARGET_DIR="$APP_HOME/$APP_PATH"
 
-if [ -z "$TERRAFORM_TEMPLATE" ]; then
-    echo "TERRAFORM_TEMPLATE is empty"
-    exit 1
-fi
-
-if [ -z "$CICD_TEMPLATE" ]; then
-    echo "CICD_TEMPLATE is empty"
-    exit 1
-fi
-
+echo "Application Home : $APP_HOME"
 echo "Application Path : $APP_PATH"
+echo "Target Directory : $TARGET_DIR"
+
+echo ""
+echo "Docker Template     : $DOCKER_TEMPLATE"
+echo "Terraform Template  : $TERRAFORM_TEMPLATE"
+echo "CI/CD Template      : $CICD_TEMPLATE"
 
 ##############################################
-# Docker Assets
+# Validate Template Directories
 ##############################################
 
-if [ ! -f "$APP_PATH/Dockerfile" ]; then
+[ -d "$DOCKER_TEMPLATE" ] || {
+    echo "Docker template missing."
+    exit 1
+}
 
-    echo "Generating Dockerfile..."
+[ -d "$TERRAFORM_TEMPLATE" ] || {
+    echo "Terraform template missing."
+    exit 1
+}
+
+[ -d "$CICD_TEMPLATE" ] || {
+    echo "CI/CD template missing."
+    exit 1
+}
+
+##############################################
+# Docker
+##############################################
+
+if [ "$HAS_DOCKERFILE" != "true" ]; then
+
+    echo ""
+    echo "Generating Docker assets..."
 
     cp "$DOCKER_TEMPLATE/Dockerfile" \
-       "$APP_PATH/Dockerfile"
+       "$TARGET_DIR/Dockerfile"
 
     cp "$DOCKER_TEMPLATE/.dockerignore" \
-       "$APP_PATH/.dockerignore"
+       "$TARGET_DIR/.dockerignore"
 
 else
 
-    echo "Dockerfile already exists. Skipping."
+    echo "Dockerfile already exists."
 
 fi
 
 ##############################################
-# Terraform Assets
+# Terraform
 ##############################################
 
-if [ ! -d "$APP_PATH/terraform" ]; then
+if [ "$HAS_TERRAFORM" != "true" ]; then
 
+    echo ""
     echo "Generating Terraform..."
 
-    mkdir -p "$APP_PATH/terraform"
+    mkdir -p "$TARGET_DIR/terraform"
 
     cp -R "$TERRAFORM_TEMPLATE/"* \
-          "$APP_PATH/terraform/"
+          "$TARGET_DIR/terraform/"
 
 else
 
-    echo "Terraform already exists. Skipping."
+    echo "Terraform already exists."
 
 fi
 
@@ -75,32 +93,36 @@ fi
 # GitHub Actions
 ##############################################
 
-if [ ! -d "$APP_PATH/.github/workflows" ]; then
+if [ "$HAS_WORKFLOWS" != "true" ]; then
 
+    echo ""
     echo "Generating GitHub Actions..."
 
-    echo "CICD_TEMPLATE=$CICD_TEMPLATE"
+    echo ""
+    echo "===== Selected Template ====="
     ls -la "$CICD_TEMPLATE"
 
-    echo "===== TEMPLATE CONTENT ====="
+    echo ""
+    echo "===== Template Preview ====="
     head -20 "$CICD_TEMPLATE/ci-cd.yml"
 
-    mkdir -p "$APP_PATH/.github/workflows"
+    mkdir -p "$TARGET_DIR/.github/workflows"
 
     cp "$CICD_TEMPLATE/ci-cd.yml" \
-       "$APP_PATH/.github/workflows/ci-cd.yml"
+       "$TARGET_DIR/.github/workflows/ci-cd.yml"
 
-    echo "===== COPIED FILE ====="
-    head -20 "$APP_PATH/.github/workflows/ci-cd.yml"
+    echo ""
+    echo "===== Generated Workflow ====="
+    head -20 "$TARGET_DIR/.github/workflows/ci-cd.yml"
 
 else
 
-    echo "GitHub workflows already exist. Skipping."
+    echo "GitHub workflow already exists."
 
 fi
 
 ##############################################
-# Generated Assets Summary
+# Summary
 ##############################################
 
 echo ""
@@ -108,18 +130,13 @@ echo "========================================="
 echo "Generated Assets"
 echo "========================================="
 
-find "$APP_PATH" \
+find "$TARGET_DIR" \
     \( -name Dockerfile \
     -o -name ".dockerignore" \
     -o -name "*.tf" \
     -o -name "*.yml" \)
 
 echo ""
-
-##############################################
-# Git Status
-##############################################
-
 echo "========================================="
 echo "Git Status"
 echo "========================================="
@@ -132,4 +149,6 @@ git diff --name-only || true
 
 echo ""
 
-echo "Asset generation completed."
+echo "========================================="
+echo "Asset Generation Completed"
+echo "========================================="
