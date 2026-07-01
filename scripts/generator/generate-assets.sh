@@ -89,6 +89,38 @@ else
 
 fi
 
+# ##############################################
+# # GitHub Actions
+# ##############################################
+
+# if [ "$HAS_WORKFLOWS" != "true" ]; then
+
+#     echo ""
+#     echo "Generating GitHub Actions..."
+
+#     echo ""
+#     echo "===== Selected Template ====="
+#     ls -la "$CICD_TEMPLATE"
+
+#     echo ""
+#     echo "===== Template Preview ====="
+#     head -20 "$CICD_TEMPLATE/ci-cd.yml"
+
+#     mkdir -p "$TARGET_DIR/.github/workflows"
+
+#     cp "$CICD_TEMPLATE/ci-cd.yml" \
+#        "$TARGET_DIR/.github/workflows/ci-cd.yml"
+
+#     echo ""
+#     echo "===== Generated Workflow ====="
+#     head -20 "$TARGET_DIR/.github/workflows/ci-cd.yml"
+
+# else
+
+#     echo "GitHub workflow already exists."
+
+# fi
+
 ##############################################
 # GitHub Actions
 ##############################################
@@ -98,26 +130,43 @@ if [ "$HAS_WORKFLOWS" != "true" ]; then
     echo ""
     echo "Generating GitHub Actions..."
 
-    echo ""
-    echo "===== Selected Template ====="
-    ls -la "$CICD_TEMPLATE"
-
-    echo ""
-    echo "===== Template Preview ====="
-    head -20 "$CICD_TEMPLATE/ci-cd.yml"
-
     mkdir -p "$TARGET_DIR/.github/workflows"
 
-    cp "$CICD_TEMPLATE/ci-cd.yml" \
-       "$TARGET_DIR/.github/workflows/ci-cd.yml"
+    ##############################################
+    # CI Workflow
+    ##############################################
 
     echo ""
-    echo "===== Generated Workflow ====="
-    head -20 "$TARGET_DIR/.github/workflows/ci-cd.yml"
+    echo "Generating ci.yml..."
+
+    cp "$CICD_TEMPLATE/ci.yml" \
+       "$TARGET_DIR/.github/workflows/ci.yml"
+
+    ##############################################
+    # CD Workflow
+    ##############################################
+
+    echo ""
+    echo "Generating cd.yml..."
+
+    cp "$CICD_TEMPLATE/cd.yml" \
+       "$TARGET_DIR/.github/workflows/cd.yml"
+
+    ##############################################
+    # Preview Generated Workflows
+    ##############################################
+
+    echo ""
+    echo "===== Generated CI Workflow ====="
+    head -20 "$TARGET_DIR/.github/workflows/ci.yml"
+
+    echo ""
+    echo "===== Generated CD Workflow ====="
+    head -20 "$TARGET_DIR/.github/workflows/cd.yml"
 
 else
 
-    echo "GitHub workflow already exists."
+    echo "GitHub workflows already exist. Skipping."
 
 fi
 
