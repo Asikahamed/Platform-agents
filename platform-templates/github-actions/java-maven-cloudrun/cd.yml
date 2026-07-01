@@ -1,0 +1,166 @@
+name: Java CD Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+
+      project_id:
+        description: "Google Cloud Project ID"
+        required: true
+        type: string
+
+      region:
+        description: "Google Cloud Region"
+        required: true
+        default: us-central1
+        type: string
+
+      environment:
+        description: "Deployment Environment"
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - qa
+          - prod
+
+      image_tag:
+        description: "Docker Image Tag"
+        required: true
+        default: latest
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  IMAGE_NAME: demo-app-java-1
+  TERRAFORM_DIR: terraform
+
+jobs:
+
+##############################################################################
+# Deploy
+##############################################################################
+
+  deploy:
+
+    name: Deploy to Cloud Run
+
+    runs-on: ubuntu-latest
+
+    environment: ${{ inputs.environment }}
+
+    steps:
+
+##############################################################################
+# Checkout
+##############################################################################
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+##############################################################################
+# Authenticate to Google Cloud
+##############################################################################
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+##############################################################################
+# Setup Cloud SDK
+##############################################################################
+
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Project
+        run: |
+          gcloud config set project "${{ inputs.project_id }}"
+          gcloud auth list
+          gcloud config list
+
+##############################################################################
+# Setup Terraform
+##############################################################################
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+##############################################################################
+# Terraform Init
+##############################################################################
+
+      - name: Terraform Init
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        run: terraform init
+
+##############################################################################
+# Terraform Validate
+##############################################################################
+
+      - name: Terraform Validate
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        run: terraform validate
+
+##############################################################################
+# Terraform Plan
+##############################################################################
+
+      - name: Terraform Plan
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        run: |
+          terraform plan \
+            -var="project_id=${{ inputs.project_id }}" \
+            -var="region=${{ inputs.region }}" \
+            -var="image=docker.io/${{ secrets.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}"
+
+##############################################################################
+# Terraform Apply
+##############################################################################
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        run: |
+          terraform apply \
+            -auto-approve \
+            -var="project_id=${{ inputs.project_id }}" \
+            -var="region=${{ inputs.region }}" \
+            -var="image=docker.io/${{ secrets.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}"
+
+##############################################################################
+# Verify Deployment
+##############################################################################
+
+      - name: Verify Cloud Run Service
+        run: |
+          echo "Cloud Run Services"
+          gcloud run services list \
+            --region=${{ inputs.region }}
+
+          echo ""
+          echo "Service URL"
+          gcloud run services describe questionapp \
+            --region=${{ inputs.region }} \
+            --format='value(status.url)'
+
+##############################################################################
+# Deployment Summary
+##############################################################################
+
+      - name: Deployment Summary
+        run: |
+          echo "========================================"
+          echo "Java CD Pipeline"
+          echo "========================================"
+          echo "Environment : ${{ inputs.environment }}"
+          echo "Project ID  : ${{ inputs.project_id }}"
+          echo "Region      : ${{ inputs.region }}"
+          echo "Image       : docker.io/${{ secrets.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}"
+          echo "Terraform   : Success"
+          echo "Cloud Run   : Success"
+          echo "========================================"
