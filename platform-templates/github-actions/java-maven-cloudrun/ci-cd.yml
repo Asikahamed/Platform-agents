@@ -19,22 +19,21 @@ env:
   IMAGE_NAME: sample-java-app
 
 jobs:
+
+##############################################################################
+# Build
+##############################################################################
+
   build:
+
+    name: Build
 
     runs-on: ubuntu-latest
 
     steps:
 
-      ############################################################
-      # Checkout
-      ############################################################
-
       - name: Checkout Repository
         uses: actions/checkout@v4
-
-      ############################################################
-      # Setup Java
-      ############################################################
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -43,58 +42,114 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           cache: maven
 
-      ############################################################
-      # Maven Wrapper Permission
-      ############################################################
+      - name: Verify Maven
+        run: mvn -version
 
-      - name: Make Maven Wrapper Executable
-        run: chmod +x mvnw
+      - name: Compile Application
+        run: mvn clean compile
 
-      ############################################################
-      # Run Tests
-      ############################################################
+##############################################################################
+# Test
+##############################################################################
+
+  test:
+
+    name: Test
+
+    runs-on: ubuntu-latest
+
+    needs: build
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
 
       - name: Run Unit Tests
-        run: ./mvnw clean test
-
-      ############################################################
-      # Generate Code Coverage
-      ############################################################
+        run: mvn test
 
       - name: Generate JaCoCo Report
-        run: ./mvnw jacoco:report
+        run: mvn jacoco:report
 
-      ############################################################
-      # Build Application
-      ############################################################
+      - name: Upload Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: |
+            target/surefire-reports
+            target/site/jacoco
+          if-no-files-found: ignore
 
-      - name: Build Application
-        run: ./mvnw clean package -DskipTests
+##############################################################################
+# Package
+##############################################################################
 
-      ############################################################
-      # Upload Build Artifact
-      ############################################################
+  package:
 
-      - name: Upload JAR Artifact
+    name: Package
+
+    runs-on: ubuntu-latest
+
+    needs: test
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Build JAR
+        run: mvn clean package -DskipTests
+
+      - name: Upload Application Artifact
         uses: actions/upload-artifact@v4
         with:
           name: springboot-jar
           path: target/*.jar
           retention-days: 7
 
-      ############################################################
-      # Docker Login
-      ############################################################
+##############################################################################
+# Docker
+##############################################################################
+
+  docker:
+
+    name: Docker Build & Push
+
+    runs-on: ubuntu-latest
+
+    needs: package
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download JAR Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: springboot-jar
+          path: target
 
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
-
-      ############################################################
-      # Docker Metadata
-      ############################################################
 
       - name: Extract Docker Metadata
         id: meta
@@ -106,33 +161,25 @@ jobs:
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
 
-      ############################################################
-      # Build & Push Docker Image
-      ############################################################
-
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile
+          file: Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      ############################################################
-      # Workflow Summary
-      ############################################################
-
-      - name: Build Summary
+      - name: Pipeline Summary
         run: |
           echo "========================================"
-          echo "Platform Agent CI Summary"
+          echo "Java CI Pipeline"
           echo "========================================"
           echo "Java Version : ${{ env.JAVA_VERSION }}"
           echo "Build Tool   : Maven"
           echo "Framework    : Spring Boot"
-          echo "Artifact     : target/*.jar"
+          echo "Artifact     : springboot-jar"
           echo "Docker Image : ${{ secrets.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}"
           echo "========================================"
