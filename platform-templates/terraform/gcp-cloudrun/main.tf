@@ -1,4 +1,39 @@
+############################################################
+# Enable Cloud Run API
+############################################################
+
+resource "google_project_service" "cloudrun" {
+
+  project = var.project_id
+  service = "run.googleapis.com"
+
+  disable_on_destroy = false
+
+}
+
+############################################################
+# Enable IAM API
+############################################################
+
+resource "google_project_service" "iam" {
+
+  project = var.project_id
+  service = "iam.googleapis.com"
+
+  disable_on_destroy = false
+
+}
+
+############################################################
+# Cloud Run Service
+############################################################
+
 resource "google_cloud_run_v2_service" "app" {
+
+  depends_on = [
+    google_project_service.cloudrun,
+    google_project_service.iam
+  ]
 
   name     = var.service_name
   location = var.region
@@ -7,17 +42,24 @@ resource "google_cloud_run_v2_service" "app" {
 
     containers {
 
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_repository}/${var.service_name}:${var.image_tag}"
+      # Placeholder image.
+      # CD pipeline replaces this with the real application image.
+
+      image = "us-docker.pkg.dev/cloudrun/container/hello"
 
       ports {
+
         container_port = 8080
+
       }
 
       resources {
 
         limits = {
+
           cpu    = "1"
           memory = "512Mi"
+
         }
 
       }
@@ -28,12 +70,18 @@ resource "google_cloud_run_v2_service" "app" {
 
 }
 
+############################################################
+# Public Access
+############################################################
+
 resource "google_cloud_run_service_iam_member" "public" {
 
   location = google_cloud_run_v2_service.app.location
-  service  = google_cloud_run_v2_service.app.name
 
-  role   = "roles/run.invoker"
+  service = google_cloud_run_v2_service.app.name
+
+  role = "roles/run.invoker"
+
   member = "allUsers"
 
 }
