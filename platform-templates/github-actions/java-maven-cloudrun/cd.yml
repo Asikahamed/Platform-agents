@@ -135,7 +135,8 @@ jobs:
           terraform plan \
             -out=tfplan \
             -var="project_id=${{ inputs.project_id }}" \
-            -var="region=${{ inputs.region }}"
+            -var="region=${{ inputs.region }}" \
+            -var="service_name=${{ inputs.service_name }}"
 
 ##############################################################################
 # Terraform Apply
