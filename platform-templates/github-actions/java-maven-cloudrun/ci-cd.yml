@@ -1,130 +1,138 @@
-name: Java Maven Cloud Run CI/CD
+name: Java CI Pipeline
 
 on:
+  push:
+    branches:
+      - main
+      - develop
+      - feature/**
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: read
-  id-token: write
 
 env:
-  PROJECT_ID: YOUR_GCP_PROJECT_ID
-  REGION: asia-south1
-  GAR_REPOSITORY: platform-agent
-  SERVICE_NAME: sample-java-app
+  JAVA_VERSION: "11"
+  IMAGE_NAME: sample-java-app
 
 jobs:
-
-  build-test:
+  build:
 
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: sample-java-app
-
     steps:
 
-      - name: Checkout
+      ############################################################
+      # Checkout
+      ############################################################
+
+      - name: Checkout Repository
         uses: actions/checkout@v4
+
+      ############################################################
+      # Setup Java
+      ############################################################
 
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: ${{ env.JAVA_VERSION }}
           cache: maven
 
-      - name: Build
-        run: mvn clean package
+      ############################################################
+      # Maven Wrapper Permission
+      ############################################################
 
-      - name: Run Tests
-        run: mvn test
+      - name: Make Maven Wrapper Executable
+        run: chmod +x mvnw
 
-  docker-build:
+      ############################################################
+      # Run Tests
+      ############################################################
 
-    runs-on: ubuntu-latest
+      - name: Run Unit Tests
+        run: ./mvnw clean test
 
-    needs:
-      - build-test
+      ############################################################
+      # Generate Code Coverage
+      ############################################################
 
-    defaults:
-      run:
-        working-directory: sample-java-app
+      - name: Generate JaCoCo Report
+        run: ./mvnw jacoco:report
 
-    steps:
+      ############################################################
+      # Build Application
+      ############################################################
 
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Build Application
+        run: ./mvnw clean package -DskipTests
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+      ############################################################
+      # Upload Build Artifact
+      ############################################################
+
+      - name: Upload JAR Artifact
+        uses: actions/upload-artifact@v4
         with:
-          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          name: springboot-jar
+          path: target/*.jar
+          retention-days: 7
 
-      - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v2
+      ############################################################
+      # Docker Login
+      ############################################################
 
-      - name: Configure Docker
-        run: |
-          gcloud auth configure-docker \
-          ${{ env.REGION }}-docker.pkg.dev
-
-      - name: Build Docker Image
-        run: |
-          docker build \
-          -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
-          .
-
-      - name: Push Docker Image
-        run: |
-          docker push \
-          ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
-
-  terraform-deploy:
-
-    runs-on: ubuntu-latest
-
-    needs:
-      - docker-build
-
-    defaults:
-      run:
-        working-directory: sample-java-app/terraform
-
-    steps:
-
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
         with:
-          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      ############################################################
+      # Docker Metadata
+      ############################################################
 
-      - name: Terraform Init
-        run: terraform init
+      - name: Extract Docker Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Terraform Validate
-        run: terraform validate
+      ############################################################
+      # Build & Push Docker Image
+      ############################################################
 
-      - name: Terraform Plan
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      ############################################################
+      # Workflow Summary
+      ############################################################
+
+      - name: Build Summary
         run: |
-          terraform plan \
-          -var="project_id=${{ env.PROJECT_ID }}" \
-          -var="region=${{ env.REGION }}" \
-          -var="service_name=${{ env.SERVICE_NAME }}" \
-          -var="image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
-
-      - name: Terraform Apply
-        run: |
-          terraform apply -auto-approve \
-          -var="project_id=${{ env.PROJECT_ID }}" \
-          -var="region=${{ env.REGION }}" \
-          -var="service_name=${{ env.SERVICE_NAME }}" \
-          -var="image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          echo "========================================"
+          echo "Platform Agent CI Summary"
+          echo "========================================"
+          echo "Java Version : ${{ env.JAVA_VERSION }}"
+          echo "Build Tool   : Maven"
+          echo "Framework    : Spring Boot"
+          echo "Artifact     : target/*.jar"
+          echo "Docker Image : ${{ secrets.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}"
+          echo "========================================"
