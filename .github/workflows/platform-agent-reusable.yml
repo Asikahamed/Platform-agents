@@ -185,6 +185,17 @@ jobs:
       # Load Agent Prompts
       ############################################################
 
+      - name: Verify Script Being Executed
+        env:
+          PLATFORM_HOME: ${{ github.workspace }}/platform
+        run: |
+          echo "===== SCRIPT CONTENT ====="
+          sed -n '1,40p' "$PLATFORM_HOME/scripts/agents/load-agents.sh"
+      
+          echo ""
+          echo "===== PLATFORM TREE ====="
+          find "$PLATFORM_HOME" -maxdepth 3 | sort
+          
       - name: Load Agent Prompts
         env:
           PLATFORM_HOME: ${{ github.workspace }}/platform
