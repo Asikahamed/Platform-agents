@@ -6,7 +6,19 @@ echo "========================================="
 echo "Platform Agent - Loading AI Agents"
 echo "========================================="
 
-AGENT_DIR=".github/agents"
+##############################################
+# Validate Environment
+##############################################
+
+if [ -z "$PLATFORM_HOME" ]; then
+    echo "ERROR: PLATFORM_HOME is not set."
+    exit 1
+fi
+
+AGENT_DIR="$PLATFORM_HOME/.github/agents"
+
+echo "Platform Home   : $PLATFORM_HOME"
+echo "Agent Directory : $AGENT_DIR"
 
 ##############################################
 # Validate Agent Directory
@@ -57,7 +69,7 @@ fi
 echo "Loaded CI/CD Agent"
 
 ##############################################
-# Kubernetes Agent
+# Kubernetes Agent (Optional)
 ##############################################
 
 KUBERNETES_AGENT="$AGENT_DIR/kubernetes-agent.agent.md"
@@ -69,47 +81,49 @@ else
 fi
 
 ##############################################
-# Export Paths
+# Export Outputs
 ##############################################
 
 echo "docker_agent=$DOCKER_AGENT" >> "$GITHUB_OUTPUT"
 echo "terraform_agent=$TERRAFORM_AGENT" >> "$GITHUB_OUTPUT"
 echo "cicd_agent=$CICD_AGENT" >> "$GITHUB_OUTPUT"
-echo "kubernetes_agent=$KUBERNETES_AGENT" >> "$GITHUB_OUTPUT"
+
+if [ -f "$KUBERNETES_AGENT" ]; then
+    echo "kubernetes_agent=$KUBERNETES_AGENT" >> "$GITHUB_OUTPUT"
+fi
 
 ##############################################
 # Display Loaded Agents
 ##############################################
 
 echo ""
-echo "========== Loaded Agents =========="
+echo "========================================="
+echo "Loaded AI Agents"
+echo "========================================="
 
+echo ""
 echo "Docker Agent"
-echo "-----------------------------------"
+echo "-----------------------------------------"
 cat "$DOCKER_AGENT"
 
 echo ""
-
 echo "Terraform Agent"
-echo "-----------------------------------"
+echo "-----------------------------------------"
 cat "$TERRAFORM_AGENT"
 
 echo ""
-
 echo "CI/CD Agent"
-echo "-----------------------------------"
+echo "-----------------------------------------"
 cat "$CICD_AGENT"
 
-echo ""
-
 if [ -f "$KUBERNETES_AGENT" ]; then
+    echo ""
     echo "Kubernetes Agent"
-    echo "-----------------------------------"
+    echo "-----------------------------------------"
     cat "$KUBERNETES_AGENT"
 fi
 
 echo ""
-
 echo "========================================="
 echo "All AI Agents Loaded Successfully"
 echo "========================================="
