@@ -141,11 +141,11 @@ echo "========================================="
 echo "Git Status"
 echo "========================================="
 
-git status
+git -C "$APP_HOME" status
 
 echo ""
 
-git diff --name-only || true
+git -C "$APP_HOME" diff --name-only || true
 
 echo ""
 
