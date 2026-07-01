@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 env:
-  JAVA_VERSION: "11"
+  JAVA_VERSION: "17"
   IMAGE_NAME: sample-java-app
 
 jobs:
