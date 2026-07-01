@@ -79,16 +79,19 @@ if [ ! -d "$APP_PATH/.github/workflows" ]; then
 
     echo "Generating GitHub Actions..."
 
+    echo "CICD_TEMPLATE=$CICD_TEMPLATE"
+    ls -la "$CICD_TEMPLATE"
+
+    echo "===== TEMPLATE CONTENT ====="
+    head -20 "$CICD_TEMPLATE/ci-cd.yml"
+
     mkdir -p "$APP_PATH/.github/workflows"
 
     cp "$CICD_TEMPLATE/ci-cd.yml" \
        "$APP_PATH/.github/workflows/ci-cd.yml"
 
-    cp platform-templates/security/trivy/trivy.yml \
-       "$APP_PATH/.github/workflows/trivy.yml"
-
-    cp platform-templates/security/gitleaks/gitleaks.yml \
-       "$APP_PATH/.github/workflows/gitleaks.yml"
+    echo "===== COPIED FILE ====="
+    head -20 "$APP_PATH/.github/workflows/ci-cd.yml"
 
 else
 
