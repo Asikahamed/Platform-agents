@@ -1,39 +1,8 @@
 ############################################################
-# Enable Cloud Run API
-############################################################
-
-resource "google_project_service" "cloudrun" {
-
-  project = var.project_id
-  service = "run.googleapis.com"
-
-  disable_on_destroy = false
-
-}
-
-############################################################
-# Enable IAM API
-############################################################
-
-resource "google_project_service" "iam" {
-
-  project = var.project_id
-  service = "iam.googleapis.com"
-
-  disable_on_destroy = false
-
-}
-
-############################################################
 # Cloud Run Service
 ############################################################
 
 resource "google_cloud_run_v2_service" "app" {
-
-  depends_on = [
-    google_project_service.cloudrun,
-    google_project_service.iam
-  ]
 
   name     = var.service_name
   location = var.region
