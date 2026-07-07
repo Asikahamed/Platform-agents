@@ -225,6 +225,7 @@ jobs:
       docker_template: ${{ steps.decision.outputs.docker_template }}
       terraform_template: ${{ steps.decision.outputs.terraform_template }}
       cicd_template: ${{ steps.decision.outputs.cicd_template }}
+      security_template: ${{ steps.decision.outputs.security_template }}
 
     steps:
       ############################################################
@@ -329,11 +330,12 @@ jobs:
           HAS_DOCKERFILE: ${{ needs.analyze.outputs.has_dockerfile }}
           HAS_TERRAFORM: ${{ needs.analyze.outputs.has_terraform }}
           HAS_WORKFLOWS: ${{ needs.analyze.outputs.has_workflows }}
-          HAS_SECURITY_SCAN: ${{ steps.analysis.outputs.has_security_scan }}
+          HAS_SECURITY_SCAN: ${{ needs.analyze.outputs.has_security_scan }}
 
           DOCKER_TEMPLATE: ${{ needs.decision-engine.outputs.docker_template }}
           TERRAFORM_TEMPLATE: ${{ needs.decision-engine.outputs.terraform_template }}
           CICD_TEMPLATE: ${{ needs.decision-engine.outputs.cicd_template }}
+          SECURITY_TEMPLATE: ${{ needs.decision-engine.outputs.security_template }}
 
         run: |
 
@@ -499,6 +501,8 @@ jobs:
           TERRAFORM_TEMPLATE: ${{ needs.decision-engine.outputs.terraform_template }}
 
           CICD_TEMPLATE: ${{ needs.decision-engine.outputs.cicd_template }}
+
+          SECURITY_TEMPLATE: ${{ needs.decision-engine.outputs.security_template }}
 
           BRANCH_NAME: ${{ needs.generate-assets.outputs.branch_name }}
 
