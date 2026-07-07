@@ -10,7 +10,7 @@ echo "========================================="
 # Validate Inputs
 ##############################################
 
-for VAR in APP_HOME APP_PATH DOCKER_TEMPLATE TERRAFORM_TEMPLATE CICD_TEMPLATE
+for VAR in APP_HOME APP_PATH DOCKER_TEMPLATE TERRAFORM_TEMPLATE CICD_TEMPLATE SECURITY_TEMPLATE
 do
     if [ -z "${!VAR}" ]; then
         echo "ERROR: $VAR is not set."
@@ -28,6 +28,7 @@ echo ""
 echo "Docker Template     : $DOCKER_TEMPLATE"
 echo "Terraform Template  : $TERRAFORM_TEMPLATE"
 echo "CI/CD Template      : $CICD_TEMPLATE"
+echo "Security Template  : $SECURITY_TEMPLATE"
 
 ##############################################
 # Validate Template Directories
@@ -48,6 +49,10 @@ echo "CI/CD Template      : $CICD_TEMPLATE"
     exit 1
 }
 
+[ -d "$SECURITY_TEMPLATE" ] || {
+    echo "Security template missing."
+    exit 1
+}
 ##############################################
 # Docker
 ##############################################
@@ -171,6 +176,23 @@ else
 fi
 
 ##############################################
+# Security Scan (Prisma / Checkov)
+##############################################
+
+echo ""
+echo "Generating Security Scan..."
+
+mkdir -p "$TARGET_DIR/.github/workflows"
+
+cp "$SECURITY_TEMPLATE/prisma-scan.yml" \
+   "$TARGET_DIR/.github/workflows/prisma-scan.yml"
+
+echo ""
+echo "===== Generated Security Workflow ====="
+head -20 "$TARGET_DIR/.github/workflows/prisma-scan.yml"
+
+
+##############################################
 # Summary
 ##############################################
 
@@ -183,7 +205,9 @@ find "$TARGET_DIR" \
     \( -name Dockerfile \
     -o -name ".dockerignore" \
     -o -name "*.tf" \
-    -o -name "*.yml" \)
+    -o -name "*.yml" \
+    -o -name ".checkov.yaml" \
+    -o -name ".prismacloud.yml" \)
 
 echo ""
 echo "========================================="

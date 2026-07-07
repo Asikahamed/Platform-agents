@@ -139,6 +139,30 @@ fi
 echo "has_workflows=$HAS_WORKFLOWS" >> "$GITHUB_OUTPUT"
 
 ##############################################
+# Security Scan (Prisma / Checkov)
+##############################################
+
+HAS_SECURITY_SCAN=false
+
+if [ -d "$APP_PATH/.github/workflows" ]; then
+
+    for workflow in "$APP_PATH/.github/workflows"/*.yml "$APP_PATH/.github/workflows"/*.yaml
+    do
+
+        [ -e "$workflow" ] || continue
+
+        if grep -qi "checkov\|bridgecrew\|prisma" "$workflow"; then
+            HAS_SECURITY_SCAN=true
+            break
+        fi
+
+    done
+
+fi
+
+echo "has_security_scan=$HAS_SECURITY_SCAN" >> "$GITHUB_OUTPUT"
+
+##############################################
 # Repository Summary
 ##############################################
 
@@ -157,5 +181,6 @@ echo ""
 echo "Dockerfile Present    : $HAS_DOCKERFILE"
 echo "Terraform Present     : $HAS_TERRAFORM"
 echo "GitHub Workflow       : $HAS_WORKFLOWS"
+echo "Security Scan         : $HAS_SECURITY_SCAN"
 
 echo "========================================="

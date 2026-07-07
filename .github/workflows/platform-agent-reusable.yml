@@ -97,6 +97,7 @@ jobs:
       has_dockerfile: ${{ steps.analysis.outputs.has_dockerfile }}
       has_terraform: ${{ steps.analysis.outputs.has_terraform }}
       has_workflows: ${{ steps.analysis.outputs.has_workflows }}
+      has_security_scan: ${{ steps.analysis.outputs.has_security_scan }}
 
     steps:
 
@@ -328,6 +329,7 @@ jobs:
           HAS_DOCKERFILE: ${{ needs.analyze.outputs.has_dockerfile }}
           HAS_TERRAFORM: ${{ needs.analyze.outputs.has_terraform }}
           HAS_WORKFLOWS: ${{ needs.analyze.outputs.has_workflows }}
+          HAS_SECURITY_SCAN: ${{ steps.analysis.outputs.has_security_scan }}
 
           DOCKER_TEMPLATE: ${{ needs.decision-engine.outputs.docker_template }}
           TERRAFORM_TEMPLATE: ${{ needs.decision-engine.outputs.terraform_template }}
