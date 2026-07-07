@@ -98,7 +98,7 @@ esac
 case "$LANGUAGE" in
 
     java)
-        SECURITY_TEMPLATE="$PLATFORM_HOME/platform-templates/security/checkov"
+        SECURITY_TEMPLATE="$PLATFORM_HOME/platform-templates/security/prisma-checkov"
         ;;
 
     dotnet)
