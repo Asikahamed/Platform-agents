@@ -69,6 +69,19 @@ fi
 echo "Loaded CI/CD Agent"
 
 ##############################################
+# Security Agent
+##############################################
+
+SECURITY_AGENT="$AGENT_DIR/security-agent.agent.md"
+
+if [ ! -f "$SECURITY_AGENT" ]; then
+    echo "ERROR: Security Agent not found."
+    exit 1
+fi
+
+echo "Loaded Security Agent"
+
+##############################################
 # Kubernetes Agent (Optional)
 ##############################################
 
@@ -87,6 +100,7 @@ fi
 echo "docker_agent=$DOCKER_AGENT" >> "$GITHUB_OUTPUT"
 echo "terraform_agent=$TERRAFORM_AGENT" >> "$GITHUB_OUTPUT"
 echo "cicd_agent=$CICD_AGENT" >> "$GITHUB_OUTPUT"
+echo "security_agent=$SECURITY_AGENT" >> "$GITHUB_OUTPUT"
 
 if [ -f "$KUBERNETES_AGENT" ]; then
     echo "kubernetes_agent=$KUBERNETES_AGENT" >> "$GITHUB_OUTPUT"
@@ -115,6 +129,11 @@ echo ""
 echo "CI/CD Agent"
 echo "-----------------------------------------"
 cat "$CICD_AGENT"
+
+echo ""
+echo "Security Agent"
+echo "-----------------------------------------"
+cat "$SECURITY_AGENT"
 
 if [ -f "$KUBERNETES_AGENT" ]; then
     echo ""

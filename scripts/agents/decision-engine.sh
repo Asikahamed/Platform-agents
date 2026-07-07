@@ -92,12 +92,34 @@ case "$LANGUAGE-$BUILD_TOOL-$DEPLOYMENT_TARGET" in
 esac
 
 ##############################################
+# Security Template
+##############################################
+
+case "$LANGUAGE" in
+
+    java)
+        SECURITY_TEMPLATE="$PLATFORM_HOME/platform-templates/security/checkov"
+        ;;
+
+    dotnet)
+        SECURITY_TEMPLATE="$PLATFORM_HOME/platform-templates/security/checkov"
+        ;;
+
+    *)
+        echo "No matching Security template."
+        exit 1
+        ;;
+
+esac
+
+##############################################
 # Export Outputs
 ##############################################
 
 echo "docker_template=$DOCKER_TEMPLATE" >> "$GITHUB_OUTPUT"
 echo "terraform_template=$TERRAFORM_TEMPLATE" >> "$GITHUB_OUTPUT"
 echo "cicd_template=$CICD_TEMPLATE" >> "$GITHUB_OUTPUT"
+echo "security_template=$SECURITY_TEMPLATE" >> "$GITHUB_OUTPUT"
 
 echo ""
 echo "========================================="
@@ -106,3 +128,4 @@ echo "========================================="
 echo "Docker     : $DOCKER_TEMPLATE"
 echo "Terraform  : $TERRAFORM_TEMPLATE"
 echo "CI/CD      : $CICD_TEMPLATE"
+echo "Security   : $SECURITY_TEMPLATE"
